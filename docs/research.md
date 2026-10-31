@@ -20,3 +20,12 @@
 - Node 20 is the minimum, but the dev machine runs Node 25. `npm test` is bare `node --test` because directory and glob args behave differently across versions.
 - `/auth` and `/test/*` must not rely on `req.ip` being localhost: a Cloudflare tunnel connects from localhost. Gate on absence of `cf-connecting-ip` / `x-forwarded-for` and a localhost `Host` header.
 - The 8 second card limit queues cards rather than dropping them, so every cast member still reaches the credits.
+
+## Implementation decisions worth knowing
+- **Episodes**: one server run is one episode, as planned, but a restart within 2 hours of the last activity resumes the same episode and cast, so a crash mid-stream does not double-count appearances or hand out Series Regular status early. `!newepisode` always starts a fresh one. Demo mode never resumes.
+- **Roles are validated, not trusted**: the model's JSON must pass the same rules as the fallback list (starts with "The", 2 to 4 words, logline under 12 words, no links or @mentions) and is moderated a second time. The chat message is passed as delimited, untrusted data.
+- **Model budget**: reasoning models spend output tokens thinking, so `max_output_tokens` is 600 and `OPENAI_REASONING_EFFORT` is opt-in. The whole moderation + generation + output-check sequence shares one 3 second deadline with an abort signal.
+- **Pacing queues instead of dropping** so every cast member still reaches the credits. Only a flood beyond 100 waiting cards drops the oldest (logged).
+- **Rate-limit key**: `cf-connecting-ip` is only believed when the TCP connection itself is from loopback (the tunnel), so a direct client cannot spoof its way out of a lockout bucket.
+- **Credits during a stream**: viewers cast while the credits roll are shown after they finish; `!credits` with no overlay connected frees the lock so a mod can retry.
+- **OpenAI model name**: `gpt-5-mini` is only the default in `.env.example`; verify the model your account can use.

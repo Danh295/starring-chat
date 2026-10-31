@@ -9,7 +9,7 @@
   },
   "scripts": {
     "start": "node src/index.js",
-    "demo": "DEMO_CHAT=true node src/index.js",
+    "demo": "node src/index.js --demo",
     "test": "node --test",
     "tunnel": "node scripts/tunnel.js"
   },

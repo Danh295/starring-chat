@@ -1,10 +1,10 @@
 'use strict';
 require('dotenv').config();
-const { loadConfig, validateConfig } = require('./config');
+const { loadConfig, validateConfig, applyCliFlags } = require('./config');
 const { createLogger } = require('./logger');
 const { createRuntime } = require('./runtime');
 
-const config = loadConfig();
+const config = loadConfig(applyCliFlags(process.argv, process.env));
 const log = createLogger();
 validateConfig(config).forEach((w) => log.warn(w));
 

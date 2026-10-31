@@ -95,3 +95,9 @@ body.has-bg-art #stage::before { content: ''; position: absolute; inset: -30px -
 #credits.compact .line { font-size: 28px; line-height: 1.3; }
 #credits.compact .small .line { font-size: 24px; }
 #credits.compact .fin { font-size: 36px; }
+
+/* ?preview=1: a dark, busy stand-in for gameplay, so the overlay can be previewed outside OBS */
+body.preview { background:
+  radial-gradient(600px 300px at 70% 30%, rgba(76,120,255,.35), transparent 70%),
+  radial-gradient(500px 260px at 25% 55%, rgba(255,90,120,.25), transparent 70%),
+  linear-gradient(135deg, #0c1a2b 0%, #1b2d1f 50%, #2a1a35 100%); }
