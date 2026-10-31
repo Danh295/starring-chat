@@ -11,7 +11,7 @@
     "start": "node src/index.js",
     "demo": "DEMO_CHAT=true node src/index.js",
     "test": "node --test",
-    "tunnel": "cloudflared tunnel --url http://localhost:3000"
+    "tunnel": "node scripts/tunnel.js"
   },
   "license": "MIT",
   "dependencies": {
