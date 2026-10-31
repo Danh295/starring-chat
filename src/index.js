@@ -3,6 +3,7 @@ require('dotenv').config();
 const { loadConfig, validateConfig } = require('./config');
 const { createApp } = require('./app');
 const { createLogger } = require('./logger');
+const { createChatSource } = require('./chat');
 const { createTokenStore, createTwitchAuth } = require('./auth');
 
 const config = loadConfig();
@@ -20,8 +21,19 @@ server.on('error', (err) => {
   process.exit(1);
 });
 
+// Chat events are only logged for now; casting is wired in a later ticket.
+const chat = createChatSource({
+  config, auth, log,
+  onChat: (e) => log.info(`[${e.channel}] ${e.chatterLogin}: ${e.text}`),
+  onRaid: (e) => log.info(`[${e.channel}] raid from ${e.raiderLogin} (${e.viewers})`),
+});
+if (chat) {
+  Promise.resolve(chat.start()).catch((err) => log.error('Chat source failed to start:', err.message));
+}
+
 function shutdown() {
   log.info('Shutting down');
+  if (chat) chat.stop();
   server.closeAllConnections();
   server.close(() => process.exit(0));
 }
