@@ -373,3 +373,18 @@ test('every cast logs one line with login, role and where the role came from, ne
   assert.ok(lines.some((l) => l.includes('@quiet') && l.includes('(lurk)')));
   assert.ok(!lines.some((l) => /spinach|private words/.test(l)), 'chat text is never logged');
 });
+
+test('a throwing writer logs "fallback: error"; a writer without a source is not called a fallback; log fields are sanitized', async () => {
+  const lines = [];
+  const log = { info: (...a) => lines.push(a.join(' ')), warn() {}, error() {} };
+  const mk = (writeRole) => createCastingEngine({
+    config: { botUsername: 'mybot', maxCastPerEpisode: 40, resumeWindowMs: 0 }, store: createJsonStore(tmp()),
+    roles: { writeRole }, emit() {}, log,
+  });
+  await mk(async () => { throw new Error('boom'); }).handleChat(msg('a'));
+  await mk(async () => ({ role: 'The Custom', logline: 'x' })).handleChat(msg('b'));
+  await mk(async () => ({ role: 'The Evil\nINFO fake line (ai)', logline: 'x', source: 'fallback', reason: 'timeout' })).handleChat(msg('c'));
+  assert.ok(lines.some((l) => l.includes('@a') && l.includes('(fallback: error)')));
+  assert.ok(lines.some((l) => l.includes('@b') && !l.includes('fallback')));
+  assert.ok(lines.every((l) => !l.includes('\n')), 'no forged extra log lines');
+});

@@ -131,7 +131,7 @@ Open `/setup.html` (through the tunnel URL if the streamer is on another compute
 
 ### Is the AI actually writing the roles?
 
-Each cast is logged as one line: `Cast @login as The Role in channel (ai)` or `(fallback: reason)`, where the reason is `no-client` (no API key), `timeout`, `flagged`, `invalid`, `output-flagged` or `error`. If you see `timeout`, try a faster model or `OPENAI_REASONING_EFFORT=minimal`. Chat text is never logged.
+Each cast is logged as one line: `Cast @login as The Role in channel (how)`. `how` is `ai` when the model wrote the role, `fallback: <reason>` when the fallback list was used (reasons: `no-client` for no API key, `timeout`, `flagged`, `invalid`, `output-flagged`, `error`), or `lurk` / `guest` for `!lurk` and raid casts, which never call the model. If you see `timeout`, try a faster model or `OPENAI_REASONING_EFFORT=minimal`. Chat text is never logged.
 
 In a normal browser tab the sting and theme stay silent until you click the page (browser autoplay rules); OBS browser sources are not affected.
 
