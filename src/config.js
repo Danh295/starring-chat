@@ -3,6 +3,12 @@ const path = require('node:path');
 
 const flag = (v) => String(v || '').trim().toLowerCase() === 'true';
 
+// Milliseconds between cards: a whole number, capped at one minute (also keeps setTimeout in range).
+function parseInterval(v) {
+  const s = String(v || '').trim();
+  return /^\d+$/.test(s) ? Math.min(60_000, Number(s)) : 8000;
+}
+
 function parsePort(v) {
   const s = String(v || '').trim();
   if (!/^\d+$/.test(s)) return 3000;
@@ -34,6 +40,7 @@ function loadConfig(env = process.env) {
     controlPassword: env.CONTROL_PASSWORD || '',
     announceInChat: flag(env.ANNOUNCE_IN_CHAT),
     maxCastPerEpisode: Number.isInteger(Number(env.MAX_CAST)) && Number(env.MAX_CAST) > 0 ? Number(env.MAX_CAST) : 40,
+    cardIntervalMs: parseInterval(env.CARD_INTERVAL_MS),
     demoSpeed: Number.isFinite(speed) && speed > 0 ? speed : 1,
     dataDir: env.DATA_DIR ? path.resolve(env.DATA_DIR) : path.resolve(__dirname, '..', 'data'),
     hasTwitchCreds: Boolean((env.TWITCH_CLIENT_ID || '').trim() && (env.TWITCH_CLIENT_SECRET || '').trim()),

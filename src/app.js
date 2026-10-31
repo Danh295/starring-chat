@@ -12,6 +12,16 @@ const { buildCredits, sampleCast } = require('./credits');
 function createApp({ config, auth, log, hub, casting, credits, authLimiter = createAuthLimiter(), artDir = path.join(__dirname, '..', 'public', 'art') }) {
   const app = express();
   app.disable('x-powered-by');
+  app.use((_req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Referrer-Policy', 'no-referrer');
+    res.setHeader('Content-Security-Policy', [
+      "default-src 'self'", "script-src 'self'", "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "font-src https://fonts.gstatic.com", "img-src 'self' data:", "media-src 'self'", "connect-src 'self' ws: wss:",
+      "object-src 'none'", "base-uri 'none'", "form-action 'self'", "frame-ancestors 'none'",
+    ].join('; '));
+    next();
+  });
   app.locals.config = config;
   if (auth) app.use('/auth', createAuthRouter({ auth, log }));
   if (hub && casting && credits) {

@@ -130,3 +130,16 @@ test('roll() with no overlay connected frees the slot so a mod can retry', async
   listeners = 1;
   assert.strictEqual((await roller.roll('chana')).rolled, true);
 });
+
+test('the roll lock shrinks with lockDivisor (used to speed up demo mode)', async () => {
+  let t = 0;
+  const roller = createCreditsRoller({
+    getCast: () => [member('a', 'cast')], getEpisode: () => 1, writeTitle: async () => 't',
+    emit: () => 1, log: quiet, now: () => t, cooldownExtraMs: 8000, lockDivisor: 10,
+  });
+  assert.strictEqual((await roller.roll('c')).rolled, true);
+  t = 4000;
+  assert.strictEqual((await roller.roll('c')).rolled, false);
+  t = 5400; // (45000 + 8000) / 10 = 5300
+  assert.strictEqual((await roller.roll('c')).rolled, true);
+});
