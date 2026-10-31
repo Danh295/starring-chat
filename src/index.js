@@ -1,9 +1,11 @@
 'use strict';
 require('dotenv').config();
+const http = require('node:http');
 const { loadConfig, validateConfig } = require('./config');
 const { createApp } = require('./app');
 const { createLogger } = require('./logger');
 const { createChatSource } = require('./chat');
+const { createHub } = require('./hub');
 const { createTokenStore, createTwitchAuth } = require('./auth');
 
 const config = loadConfig();
@@ -13,8 +15,11 @@ validateConfig(config).forEach((w) => log.warn(w));
 const auth = config.hasTwitchCreds
   ? createTwitchAuth({ config, store: createTokenStore(config.dataDir) })
   : null;
-const app = createApp({ config, auth, log });
-const server = app.listen(config.port, () =>
+const server = http.createServer();
+const hub = createHub({ server, log });
+const app = createApp({ config, auth, log, hub });
+server.on('request', app);
+server.listen(config.port, () =>
   log.info(`Starring: Chat listening on http://localhost:${config.port}`));
 server.on('error', (err) => {
   log.error(`Cannot start server on port ${config.port}:`, err.message);
@@ -34,6 +39,7 @@ if (chat) {
 function shutdown() {
   log.info('Shutting down');
   if (chat) chat.stop();
+  hub.close();
   server.closeAllConnections();
   server.close(() => process.exit(0));
 }

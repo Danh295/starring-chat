@@ -2,9 +2,14 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Starring: Chat overlay</title>
-<style>html,body{margin:0;background:transparent;font-family:system-ui,sans-serif;color:#fff}
-#status{position:fixed;left:24px;bottom:24px;padding:8px 14px;background:rgba(0,0,0,.6);border-radius:8px}</style>
+<link rel="stylesheet" href="overlay.css">
 </head>
-<body><div id="status">Starring: Chat is connected</div></body>
+<body>
+<div id="status">Starring: Chat is connected</div>
+<div id="stage"></div>
+<script src="overlay-core.js"></script>
+<script src="overlay.js"></script>
+</body>
 </html>
