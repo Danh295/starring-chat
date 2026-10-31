@@ -66,3 +66,15 @@ test('/test/cast can preview guest, lurk and regular cards; bad kinds fall back 
   assert.deepStrictEqual(casts.map((c) => c.regular), [false, false, true, false]);
   assert.strictEqual(casts[0].role, 'The Special Guest');
 });
+
+test('/art-manifest lists only the art files that exist', async (t) => {
+  const fs = require('node:fs'); const path = require('node:path'); const os = require('node:os');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sc-art-'));
+  fs.writeFileSync(path.join(dir, 'stamp.png'), 'x');
+  fs.writeFileSync(path.join(dir, 'notes.txt'), 'x');
+  const app = createApp({ config: loadConfig({}), log: quiet, artDir: dir });
+  const server = await new Promise((res) => { const s = app.listen(0, '127.0.0.1', () => res(s)); });
+  t.after(() => { server.closeAllConnections(); server.close(); });
+  const res = await fetch(`http://127.0.0.1:${server.address().port}/art-manifest`);
+  assert.deepStrictEqual(await res.json(), { files: ['stamp.png'] });
+});

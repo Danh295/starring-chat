@@ -18,25 +18,33 @@
     return e;
   }
 
-  // ---- optional hand-drawn art: drop PNGs into public/art/ and they are used automatically
-  function probeArt(file, bodyClass, cssVar) {
-    var img = new Image();
-    img.onload = function () {
-      document.body.classList.add(bodyClass);
-      document.documentElement.style.setProperty(cssVar, 'url("art/' + file + '")');
-    };
-    img.src = 'art/' + file;
+  // ---- optional hand-drawn art: drop PNGs into public/art/ and they are used automatically.
+  // The server lists which files exist, so a default install makes no failing requests.
+  var ART = { 'card-frame.png': ['has-frame-art', '--frame-art'], 'stamp.png': ['has-stamp-art', '--stamp-art'], 'background.png': ['has-bg-art', '--bg-art'] };
+  function loadArt() {
+    fetch('art-manifest').then(function (r) { return r.json(); }).then(function (m) {
+      (m.files || []).forEach(function (file) {
+        var spec = ART[file];
+        if (!spec) return;
+        document.body.classList.add(spec[0]);
+        document.documentElement.style.setProperty(spec[1], 'url("art/' + file + '")');
+      });
+    }).catch(function () { /* art is optional */ });
   }
-  probeArt('card-frame.png', 'has-frame-art', '--frame-art');
-  probeArt('stamp.png', 'has-stamp-art', '--stamp-art');
-  probeArt('background.png', 'has-bg-art', '--bg-art');
+  loadArt();
 
   // ---- sound: public/audio/sting.mp3 if present, otherwise a short synthesized sting
   var audioCtx = null;
-  var hasFileSting = null; // null = unknown, true/false after the first try
+  var hasFileSting = null; // null = still finding out
+  var stingAudio = new Audio('audio/sting.mp3');
+  stingAudio.preload = 'auto';
+  stingAudio.volume = STING_VOLUME;
+  stingAudio.addEventListener('error', function () { hasFileSting = false; });
+  stingAudio.addEventListener('canplaythrough', function () { hasFileSting = true; });
   function synthSting() {
     try {
       audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
       var t0 = audioCtx.currentTime;
       [523.25, 659.25, 783.99, 1046.5].forEach(function (f, i) {
         var o = audioCtx.createOscillator();
@@ -52,17 +60,15 @@
     } catch (_) { /* audio is optional */ }
   }
   function playSting() {
-    if (hasFileSting === false) return synthSting();
-    var a = new Audio('audio/sting.mp3');
-    a.volume = STING_VOLUME;
-    a.addEventListener('error', function () { hasFileSting = false; synthSting(); });
-    a.addEventListener('canplaythrough', function () { hasFileSting = true; });
-    var p = a.play();
+    if (hasFileSting !== true) return synthSting();
+    stingAudio.currentTime = 0;
+    var p = stingAudio.play();
     if (p && p.catch) p.catch(function () { /* autoplay blocked: stay silent */ });
   }
 
   // ---- cards
   var nodes = new Map(); // card -> DOM node
+  var timers = new Map(); // card -> pending reveal timer
   var queue = OverlayCore.createCardQueue({
     show: function (c) {
       var m = OverlayCore.cardModel(c);
@@ -81,16 +87,23 @@
       } catch (err) { node.remove(); throw err; }
       nodes.set(c, node);
       requestAnimationFrame(function () { requestAnimationFrame(function () { node.classList.add('in'); }); });
-      setTimeout(function () {
-        if (!node.isConnected) return;
+      timers.set(c, setTimeout(function () {
+        if (!nodes.has(c)) return; // removed before the reveal: no sting, no flash
         node.classList.remove('casting');
         playSting();
-      }, CLAP_MS);
+      }, CLAP_MS));
     },
-    wait: function (_c, skipped) { return Promise.race([sleep(CLAP_MS + HOLD_MS), skipped]); },
+    wait: function (_c, skipped) {
+      return new Promise(function (resolve) {
+        var t = setTimeout(resolve, CLAP_MS + HOLD_MS);
+        skipped.then(function () { clearTimeout(t); resolve(); });
+      });
+    },
     hide: function (c) {
       var node = nodes.get(c);
       nodes.delete(c);
+      clearTimeout(timers.get(c));
+      timers.delete(c);
       if (!node) return undefined;
       node.classList.remove('in');
       return sleep(EXIT_MS).then(function () { node.remove(); });
@@ -116,10 +129,10 @@
     ws.onmessage = function (e) {
       var msg;
       try { msg = JSON.parse(e.data); } catch (_) { return; }
-      if (msg.type === 'hello') { attempt = 0; setStatus('Starring: Chat is connected', false, 4000); }
+      if (msg.type === 'hello') { attempt = 0; setStatus('Starring: Chat is connected', false, 4000); loadArt(); }
       else if (msg.type === 'cast') queue.push(msg);
-      else if (msg.type === 'uncast') queue.removeWhere(function (c) { return c.login === msg.login; });
-      else if (msg.type === 'episode') queue.clear();
+      else if (msg.type === 'uncast') queue.removeWhere(function (c) { return !!msg.login && c.login === msg.login; });
+      else if (msg.type === 'episode') queue.reset();
     };
     ws.onclose = function () {
       if (reconnectTimer) return;

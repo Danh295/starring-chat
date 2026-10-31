@@ -1,4 +1,5 @@
 'use strict';
+const fs = require('node:fs');
 const path = require('node:path');
 const express = require('express');
 const { createAuthRouter } = require('./auth');
@@ -6,7 +7,7 @@ const { requireLocalOrPassword } = require('./guard');
 const { isValidChannel } = require('./hub');
 
 // Builds the Express app. All dependencies are passed in so tests can fake them.
-function createApp({ config, auth, log, hub }) {
+function createApp({ config, auth, log, hub, artDir = path.join(__dirname, '..', 'public', 'art') }) {
   const app = express();
   app.disable('x-powered-by');
   app.locals.config = config;
@@ -24,12 +25,18 @@ function createApp({ config, auth, log, hub }) {
         lurk: ['The Silent Observer', 'Watching every scene from the back row.'],
       }[kind];
       const delivered = hub.broadcast(channel, {
-        type: 'cast', id: `test-${Date.now()}`, kind, user,
+        type: 'cast', id: `test-${Date.now()}`, kind, user, login: user.toLowerCase(),
         role: sample[0], logline: sample[1], regular: kind === 'cast' && req.query.regular === '1',
       });
       res.json({ ok: true, delivered });
     });
   }
+  // Lets the overlay know which optional hand-drawn art files exist, without 404 probing.
+  app.get('/art-manifest', (_req, res) => {
+    let files = [];
+    try { files = fs.readdirSync(artDir).filter((f) => /\.(png|jpe?g|webp|svg|gif)$/i.test(f)); } catch { /* no art dir */ }
+    res.json({ files });
+  });
   app.get('/health', (_req, res) => res.json({ ok: true }));
   app.use(express.static(path.join(__dirname, '..', 'public')));
   return app;

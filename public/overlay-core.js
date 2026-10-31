@@ -8,6 +8,7 @@
     let running = null;
     let active = false;
     let current = null;
+    let phase = 'idle';
     let skipCurrent = () => {};
 
     async function loop() {
@@ -16,13 +17,16 @@
         current = card;
         try {
           const skipped = new Promise((resolve) => { skipCurrent = resolve; });
+          phase = 'showing';
           show(card);
           await wait(card, skipped);
+          phase = 'hiding';
           await hide(card);
         } catch (err) {
           if (typeof console !== 'undefined') console.error('card failed', err);
         }
         current = null;
+        phase = 'idle';
       }
       active = false;
     }
@@ -35,11 +39,12 @@
       },
       clear() { items.length = 0; },
       skip() { skipCurrent(); },
+      reset() { items.length = 0; skipCurrent(); },
       // Removes waiting cards matching `pred`, and ends the current one early if it matches.
       removeWhere(pred) {
         let n = 0;
         for (let i = items.length - 1; i >= 0; i--) if (pred(items[i])) { items.splice(i, 1); n++; }
-        if (current && pred(current)) { skipCurrent(); n++; }
+        if (current && phase === 'showing' && pred(current)) { skipCurrent(); n++; }
         return n;
       },
       idle: () => running || Promise.resolve(),

@@ -118,3 +118,22 @@ test('skip() ends the current hold early', async () => {
   q.skip(); await q.idle();
   assert.deepStrictEqual(hidden, [1]);
 });
+
+test('removeWhere ignores a card that is already exiting', async () => {
+  let finishHide; const hideGate = new Promise((r) => { finishHide = r; });
+  const q = createCardQueue({ show: () => {}, hide: () => hideGate, wait: async () => {} });
+  q.push({ id: 1, login: 'a' });
+  await new Promise((r) => setImmediate(r)); // now in the hide phase
+  assert.strictEqual(q.removeWhere((c) => c.login === 'a'), 0);
+  finishHide(); await q.idle();
+});
+
+test('reset() clears waiting cards and ends the current one', async () => {
+  const shown = []; const hidden = [];
+  const q = createCardQueue({ show: (c) => shown.push(c.id), hide: (c) => { hidden.push(c.id); }, wait: (_c, skipped) => skipped });
+  q.push({ id: 1 }); q.push({ id: 2 }); q.push({ id: 3 });
+  await new Promise((r) => setImmediate(r));
+  q.reset(); await q.idle();
+  assert.deepStrictEqual(shown, [1]);
+  assert.deepStrictEqual(hidden, [1]);
+});

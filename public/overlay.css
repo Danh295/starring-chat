@@ -66,7 +66,9 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background:
 .card.lurk .role { text-shadow: 0 2px 0 rgba(0,0,0,.4); }
 
 /* ---- optional hand-drawn art (public/art/*.png), switched on by overlay.js --- */
-body.has-frame-art .card .body { background: var(--frame-art) center / 100% 100% no-repeat, linear-gradient(160deg, #1a2050 0%, var(--navy) 70%); box-shadow: none; }
+body.has-frame-art .card.cast .body { background: var(--frame-art) center / 100% 100% no-repeat, linear-gradient(160deg, #1a2050 0%, var(--navy) 70%); box-shadow: none; }
+body.has-frame-art .card.guest .body { background: var(--frame-art) center / 100% 100% no-repeat, linear-gradient(160deg, #ffe38a 0%, #e8b020 55%, #b98100 100%); box-shadow: none; }
+body.has-frame-art .card.lurk .body { background: var(--frame-art) center / 100% 100% no-repeat, linear-gradient(160deg, rgba(60,66,100,.78), rgba(26,30,60,.78)); box-shadow: none; outline: none; }
 body.has-frame-art .card .body::before, body.has-frame-art .card .body::after { display: none; }
 body.has-stamp-art .card .stamp { background-image: var(--stamp-art); }
 body.has-bg-art #stage::before { content: ''; position: absolute; inset: -30px -30px -30px -50px; background: var(--bg-art) center / cover no-repeat; opacity: .35; z-index: -1; }
