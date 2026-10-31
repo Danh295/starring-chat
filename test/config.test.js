@@ -85,3 +85,8 @@ test('CARD_INTERVAL_MS defaults to 8000, accepts 0, rejects junk', () => {
   assert.strictEqual(loadConfig({ CARD_INTERVAL_MS: '-5' }).cardIntervalMs, 8000);
   assert.strictEqual(loadConfig({ CARD_INTERVAL_MS: 'x' }).cardIntervalMs, 8000);
 });
+
+test('CARD_INTERVAL_MS is capped at one minute (setTimeout-safe)', () => {
+  assert.strictEqual(loadConfig({ CARD_INTERVAL_MS: '99999999999' }).cardIntervalMs, 60000);
+  assert.strictEqual(loadConfig({ CARD_INTERVAL_MS: '60000' }).cardIntervalMs, 60000);
+});

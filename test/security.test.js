@@ -37,7 +37,11 @@ test('no inline scripts in any page (CSP would block them)', () => {
   const dir = path.join(__dirname, '..', 'public');
   for (const f of fs.readdirSync(dir).filter((f) => f.endsWith('.html'))) {
     const html = fs.readFileSync(path.join(dir, f), 'utf8');
-    assert.ok(!/<script(?![^>]*\bsrc=)[^>]*>/i.test(html), `${f} has an inline script`);
-    assert.ok(!/\son\w+="/i.test(html), `${f} has an inline event handler`);
+    for (const m of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)) {
+      assert.ok(/\bsrc\s*=/.test(m[1]), `${f} has a <script> without src`);
+      assert.strictEqual(m[2].trim(), '', `${f} has inline script content`);
+    }
+    assert.ok(!/\son\w+\s*=/i.test(html), `${f} has an inline event handler`);
+    assert.ok(!/href\s*=\s*["']\s*javascript:/i.test(html), `${f} has a javascript: link`);
   }
 });

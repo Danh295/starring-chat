@@ -23,8 +23,11 @@ function shutdown() {
   if (stopping) return;
   stopping = true;
   log.info('Shutting down');
-  runtime.stop().then(() => process.exit(0));
-  setTimeout(() => process.exit(0), 3000).unref();
+  const hardExit = setTimeout(() => { log.warn('Shutdown timed out'); process.exit(1); }, 3000);
+  hardExit.unref();
+  Promise.resolve()
+    .then(() => runtime.stop())
+    .then(() => process.exit(0), (err) => { log.error('Shutdown failed:', err.stack || err.message); process.exit(1); });
 }
 process.on('SIGINT', shutdown);
 process.on('SIGTERM', shutdown);

@@ -3,7 +3,7 @@
 // Wraps `emit` so role cards leave at most one per `intervalMs` per channel. Cards are queued,
 // never dropped (except the oldest when a flood exceeds `maxQueue`), so everyone still reaches
 // the cast and the credits. Other events pass straight through.
-function createPacer({ emit, intervalMs = 8000, now = Date.now, setTimer = setTimeout, clearTimer = clearTimeout, maxQueue = 100 }) {
+function createPacer({ emit, intervalMs = 8000, now = Date.now, setTimer = setTimeout, clearTimer = clearTimeout, maxQueue = 100, onDrop = () => {} }) {
   const channels = new Map(); // channel -> { queue, nextAt, timer }
   const state = (c) => {
     if (!channels.has(c)) channels.set(c, { queue: [], nextAt: 0, timer: null });
@@ -28,7 +28,11 @@ function createPacer({ emit, intervalMs = 8000, now = Date.now, setTimer = setTi
   return {
     emit(channel, ev) {
       if (!ev || ev.type !== 'cast' || intervalMs <= 0) {
-        if (ev && (ev.type === 'episode' || ev.type === 'credits')) state(channel).queue.length = 0;
+        if (ev && (ev.type === 'episode' || ev.type === 'credits')) {
+          const st = state(channel);
+          st.queue.length = 0;
+          if (ev.type === 'episode') { clearTimer(st.timer); st.timer = null; st.nextAt = 0; } // the new episode starts fresh
+        }
         if (ev && ev.type === 'uncast') {
           const st = state(channel);
           st.queue = st.queue.filter((c) => c.login !== ev.login);
@@ -36,7 +40,7 @@ function createPacer({ emit, intervalMs = 8000, now = Date.now, setTimer = setTi
         return emit(channel, ev);
       }
       const st = state(channel);
-      if (st.queue.length >= maxQueue) st.queue.shift();
+      if (st.queue.length >= maxQueue) onDrop(channel, st.queue.shift());
       st.queue.push(ev);
       pump(channel);
       return 1;

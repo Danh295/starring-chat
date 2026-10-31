@@ -92,3 +92,21 @@ test('stop() cancels pending sends', async () => {
   await wait(80);
   assert.strictEqual(sent.length, 1);
 });
+
+test('a new episode resets pacing so its first card is not held behind the old one', async () => {
+  const { pacer, sent } = make(200);
+  pacer.emit('c', cast('a'));            // goes out now, next slot in 200ms
+  pacer.emit('c', { type: 'episode' });
+  pacer.emit('c', cast('b'));            // new episode: should go out immediately
+  assert.deepStrictEqual(sent.filter((s) => s.type === 'cast').map((s) => s.login), ['a', 'b']);
+  pacer.stop();
+});
+
+test('dropping the oldest waiting card is reported through onDrop', () => {
+  const dropped = [];
+  const { pacer } = make(1000, { maxQueue: 2, onDrop: (ch, ev) => dropped.push([ch, ev.login]) });
+  pacer.emit('c', cast('first'));
+  for (const l of ['a', 'b', 'c']) pacer.emit('c', cast(l));
+  assert.deepStrictEqual(dropped, [['c', 'a']]);
+  pacer.stop();
+});

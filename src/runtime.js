@@ -26,7 +26,12 @@ function createRuntime({ config, log }) {
     server, log,
     onConnect: (channel) => { if (demo && channel === config.demoChannel) demo.ensureRunning(); },
   });
-  const pacer = createPacer({ emit: (channel, ev) => hub.broadcast(channel, ev), intervalMs: config.cardIntervalMs });
+  // Demo mode runs the script faster, so the card spacing shrinks with it.
+  const pacer = createPacer({
+    emit: (channel, ev) => hub.broadcast(channel, ev),
+    intervalMs: config.demo ? Math.round(config.cardIntervalMs / config.demoSpeed) : config.cardIntervalMs,
+    onDrop: (channel, ev) => log.warn(`Too many cards waiting for ${channel}; dropped the card for ${ev.login}`),
+  });
 
   const getOpenAI = createOpenAIGetter({ apiKey: config.openaiApiKey });
   const roles = createRoleWriter({
@@ -39,7 +44,8 @@ function createRuntime({ config, log }) {
   let creditsRoller = null;
 
   const casting = createCastingEngine({
-    config, store: createJsonStore(config.dataDir), roles,
+    // the demo never resumes an old session, so every demo launch starts from a clean cast
+    config: config.demo ? { ...config, resumeWindowMs: 0 } : config, store: createJsonStore(config.dataDir), roles,
     emit: (channel, ev) => pacer.emit(channel, ev),
     getCategory: categoryFor,
     onCredits: (channel) => { creditsRoller.roll(channel).catch((err) => log.error('Credits failed:', err.message)); },
