@@ -28,6 +28,7 @@ const hub = createHub({ server, log });
 const roles = createRoleWriter({
   getClient: createOpenAIGetter({ apiKey: config.openaiApiKey }),
   model: config.openaiModel,
+  reasoningEffort: config.openaiReasoningEffort,
   fallbackRoles: loadFallbackRoles(config.dataDir),
   log,
 });

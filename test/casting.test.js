@@ -17,7 +17,7 @@ function setup(over = {}) {
   let n = 0;
   const roleCalls = [];
   const engine = createCastingEngine({
-    config: { botUsername: 'mybot', maxCastPerEpisode: 40, announceInChat: false, ...(over.config || {}) },
+    config: { botUsername: 'mybot', maxCastPerEpisode: 40, announceInChat: false, resumeWindowMs: 0, ...(over.config || {}) },
     store: createJsonStore(dir),
     roles: over.roles || { writeRole: async (req) => { roleCalls.push(req); return { role: `The Tester ${++n}`.replace(/ \d+$/, ''), logline: 'Tests things.', source: 'ai' }; } },
     emit: (channel, ev) => emitted.push({ channel, ...ev }),
@@ -288,4 +288,70 @@ test('loadFallbackRoles reads the editable file and skips invalid entries', () =
   assert.deepStrictEqual(loadFallbackRoles(dir), [{ role: 'The Custom One', logline: 'Mine.' }]);
   fs.writeFileSync(path.join(dir, 'fallback-roles.json'), 'nope');
   assert.deepStrictEqual(loadFallbackRoles(dir), DEFAULT_FALLBACKS);
+});
+
+test('a restart soon after a stream resumes the same episode and cast', async () => {
+  const dir = tmp();
+  let t = 1_000_000;
+  const a = createCastingEngine({
+    config: { botUsername: 'mybot', maxCastPerEpisode: 40, resumeWindowMs: 7200_000 }, store: createJsonStore(dir),
+    roles: { writeRole: async () => ({ role: 'The Tester', logline: 'Tests.' }) }, emit() {}, log: quiet, now: () => t,
+  });
+  await a.handleChat(msg('early'));
+  t += 30 * 60_000; // 30 minutes later the app restarts
+  const emitted = [];
+  const b = createCastingEngine({
+    config: { botUsername: 'mybot', maxCastPerEpisode: 40, resumeWindowMs: 7200_000 }, store: createJsonStore(dir),
+    roles: { writeRole: async () => ({ role: 'The Tester', logline: 'Tests.' }) }, emit: (c, e) => emitted.push(e), log: quiet, now: () => t,
+  });
+  assert.strictEqual(b.getEpisode('chana'), 1);
+  assert.deepStrictEqual(b.getCast('chana').map((c) => c.login), ['early']);
+  assert.strictEqual((await b.handleChat(msg('early', 'again'))).action, 'ignored');
+  assert.strictEqual((await b.handleChat(msg('late'))).action, 'cast');
+  const file = JSON.parse(fs.readFileSync(path.join(dir, 'cast-chana.json'), 'utf8'));
+  assert.strictEqual(file.members.early.episodes, 1, 'not counted twice');
+  t += 5 * 3600_000; // much later: a new episode
+  const c = createCastingEngine({
+    config: { botUsername: 'mybot', maxCastPerEpisode: 40, resumeWindowMs: 7200_000 }, store: createJsonStore(dir),
+    roles: { writeRole: async () => ({ role: 'The Tester', logline: 'Tests.' }) }, emit() {}, log: quiet, now: () => t,
+  });
+  assert.strictEqual(c.getEpisode('chana'), 2);
+  assert.deepStrictEqual(c.getCast('chana'), []);
+});
+
+test('!newepisode during an in-flight cast does not block that viewer in the new episode', async () => {
+  let release; const gate = new Promise((r) => { release = r; });
+  let first = true;
+  const s = setup({ roles: { writeRole: async () => { if (first) { first = false; await gate; } return { role: 'The Late One', logline: 'Slow.' }; } } });
+  const slow = s.engine.handleChat(msg('a'));
+  await new Promise((r) => setTimeout(r, 10));
+  await s.engine.handleChat(msg('boss', '!newepisode', { isBroadcaster: true }));
+  const fresh = await s.engine.handleChat(msg('a', 'message in the new episode'));
+  assert.strictEqual(fresh.action, 'cast');
+  release();
+  assert.strictEqual((await slow).action, 'ignored');
+  assert.deepStrictEqual(s.engine.getCast('chana').map((c) => c.login), ['a']);
+});
+
+test('!uncast gives back the appearance it removed, so no Series Regular progress', async () => {
+  const s = setup();
+  await s.engine.handleChat(msg('bob'));
+  await s.engine.handleChat(msg('themod', '!uncast bob', { isMod: true }));
+  await new Promise((r) => setTimeout(r, 20));
+  const file = JSON.parse(fs.readFileSync(path.join(s.dir, 'cast-chana.json'), 'utf8'));
+  assert.ok(!file.members.bob);
+});
+
+test('raids respect a (slightly looser) cap', async () => {
+  const s = setup({ config: { maxCastPerEpisode: 1 } });
+  await s.engine.handleChat(msg('a'));
+  assert.strictEqual((await s.engine.handleRaid({ channel: 'chana', raiderLogin: 'r1', raiderName: 'R1', viewers: 3 })).action, 'cast');
+  for (let i = 0; i < 10; i++) await s.engine.handleRaid({ channel: 'chana', raiderLogin: `x${i}`, raiderName: 'X', viewers: 3 });
+  const r = await s.engine.handleRaid({ channel: 'chana', raiderLogin: 'last', raiderName: 'Last', viewers: 3 });
+  assert.strictEqual(r.reason, 'cap');
+});
+
+test('chat links with unusual TLDs or spelled-out dots are skipped; ordinary typos are not', () => {
+  for (const t of ['visit spam.store', 'x.info/y', 'free stuff at foo dot com', 'youtu.be/abc', 't.co/xyz']) assert.ok(hasLink(t), t);
+  for (const t of ['good.to be honest', 'cya.me', 'see you.Soon']) assert.ok(!hasLink(t), t);
 });

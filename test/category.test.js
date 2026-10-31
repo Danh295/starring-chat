@@ -32,3 +32,13 @@ test('a slow Helix call is abandoned after the timeout', async () => {
   const get = createCategoryLookup({ auth, timeoutMs: 30 });
   assert.strictEqual(await get('10'), '');
 });
+
+test('failures are not cached, so a recovered Helix is used right away', async () => {
+  let fail = true; let calls = 0;
+  const auth = { helix: async () => { calls++; return fail ? { ok: false, status: 503 } : { ok: true, json: async () => ({ data: [{ game_name: 'Chess' }] }) }; } };
+  const get = createCategoryLookup({ auth });
+  assert.strictEqual(await get('10'), '');
+  fail = false;
+  assert.strictEqual(await get('10'), 'Chess');
+  assert.strictEqual(calls, 2);
+});

@@ -16,9 +16,7 @@ const LURK_ROLES = [
   ['The Popcorn Holder', 'Front row seat, no spoilers.'],
 ];
 
-// Links: explicit schemes, www., or something that looks like domain/path.
-const LINK_RE = /(https?:\/\/|www\.|\b[a-z0-9-]+\.(com|net|org|io|tv|gg|ly|me|co|app|xyz|dev|link|us|ca|uk|de|ru|cn|to)\b)/i;
-const hasLink = (text) => LINK_RE.test(String(text));
+const { hasLink } = require('./links');
 
 const cleanName = (n, fallback) => String(n || fallback || '').replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 25) || String(fallback || 'Someone');
 const hash = (s) => [...String(s)].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
@@ -27,7 +25,7 @@ const hash = (s) => [...String(s)].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >
 // overlay events. Everything outside this module (chat, OpenAI, storage, overlay) is injected.
 function createCastingEngine({
   config, store, roles, emit, getCategory = async () => '', announce = async () => {},
-  onCredits = () => {}, log,
+  onCredits = () => {}, log, now = Date.now,
 }) {
   const channels = new Map();
   let optoutsAll = null;
@@ -43,8 +41,13 @@ function createCastingEngine({
     if (st) return st;
     const file = store.read(`cast-${channel}.json`, null);
     const members = file && typeof file.members === 'object' && file.members ? file.members : {};
+    // A restart soon after the last activity resumes the same episode (and its cast) instead
+    // of starting a new one, so a crash mid-stream does not double-count appearances.
+    const window = config.resumeWindowMs === undefined ? 2 * 3600_000 : config.resumeWindowMs;
+    const lastEpisode = (file && Number(file.episode)) || 0;
+    const resume = Boolean(file) && lastEpisode > 0 && window > 0 && now() - (Number(file.updatedAt) || 0) <= window;
     st = {
-      episode: (file && Number(file.episode) || 0) + 1,
+      episode: resume ? lastEpisode : lastEpisode + 1,
       epoch: 0,
       members,
       cast: new Map(),
@@ -53,12 +56,30 @@ function createCastingEngine({
       paused: false,
       optouts: new Set(loadOptouts()[channel] || []),
     };
+    if (resume) {
+      for (const [login, m] of Object.entries(members)) {
+        if (m && m.lastEpisode === st.episode) {
+          st.cast.set(login, {
+            login, name: m.name, kind: m.kind || 'cast', role: m.role, logline: m.logline,
+            regular: (m.kind || 'cast') === 'cast' && m.episodes >= REGULAR_FROM_EPISODE, episode: st.episode,
+          });
+        }
+      }
+    }
     channels.set(channel, st);
     return st;
   }
 
+  // Undo this episode's appearance (used by !uncast) so removed viewers earn no Series Regular progress.
+  function forgetAppearance(st, login) {
+    const m = st.members[login];
+    if (!m || m.lastEpisode !== st.episode) return;
+    m.episodes -= 1;
+    if (m.episodes <= 0) delete st.members[login]; else m.lastEpisode = st.episode - 1;
+  }
+
   const save = (channel, st) =>
-    store.write(`cast-${channel}.json`, { channel, episode: st.episode, members: st.members })
+    store.write(`cast-${channel}.json`, { channel, episode: st.episode, updatedAt: now(), members: st.members })
       .catch((err) => log.error(`Could not save cast for ${channel}:`, err.message));
 
   const saveOptouts = (channel, st) => {
@@ -119,7 +140,7 @@ function createCastingEngine({
       });
       return { action: 'cast', entry, source: r.source };
     } finally {
-      st.inFlight.delete(login);
+      if (epoch === st.epoch) st.inFlight.delete(login);
     }
   }
 
@@ -147,6 +168,7 @@ function createCastingEngine({
     st.epoch += 1;
     st.cast.clear();
     st.blocked.clear();
+    st.inFlight.clear();
     emit(channel, { type: 'episode', channel, episode: st.episode });
     save(channel, st);
     return st.episode;
@@ -171,7 +193,7 @@ function createCastingEngine({
       const target = String(second || '').replace(/^@/, '').toLowerCase();
       if (!target) return { action: 'ignored', reason: 'target' };
       st.blocked.add(target);
-      removeFromCast(channel, st, target);
+      if (removeFromCast(channel, st, target)) { forgetAppearance(st, target); save(channel, st); }
       return { action: 'uncast', login: target };
     }
     if (cmd === '!newepisode') {
@@ -204,6 +226,7 @@ function createCastingEngine({
         const st = state(channel);
         const reason = skipReason(st, login, null);
         if (reason) return { action: 'ignored', reason };
+        if (st.cast.size >= maxCast() + 10) return { action: 'ignored', reason: 'cap' }; // raids get a little extra room
         const n = Number(e.viewers) || 0;
         const logline = n > 1 ? `Arrived with ${n} friends in tow.` : 'Dropped in to say hello.';
         const entry = commit(channel, st, { login, name: cleanName(e.raiderName, login), kind: 'guest', role: 'The Special Guest', logline });
@@ -225,7 +248,9 @@ function createCastingEngine({
       const st = state(channel);
       const l = String(login).toLowerCase();
       st.blocked.add(l);
-      return removeFromCast(channel, st, l);
+      const had = removeFromCast(channel, st, l);
+      if (had) { forgetAppearance(st, l); save(channel, st); }
+      return had;
     },
     startNewEpisode,
   };

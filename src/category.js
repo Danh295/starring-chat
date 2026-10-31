@@ -11,7 +11,7 @@ function createCategoryLookup({ auth, now = Date.now, ttlMs = 5 * 60_000, timeou
     try {
       const fetchIt = (async () => {
         const res = await auth.helix(`/channels?broadcaster_id=${encodeURIComponent(broadcasterId)}`);
-        if (!res.ok) return '';
+        if (!res.ok) return null; // do not cache failures
         const { data = [] } = await res.json();
         return (data[0] && data[0].game_name) || '';
       })();

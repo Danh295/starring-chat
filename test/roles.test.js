@@ -122,3 +122,29 @@ test('very long chat messages are truncated before being sent to the model', asy
   const gen = client.calls.find((c) => c[0] === 'responses')[1];
   assert.ok(JSON.stringify(gen).length < 3000);
 });
+
+test('bare domains in model output are rejected', () => {
+  for (const l of ['plugs spam.com daily', 'join discord.gg now', 'visit example dot com']) {
+    assert.strictEqual(validateRole({ role: 'The Promo Fan', logline: l }), null, l);
+  }
+});
+
+test('roles already used are listed in the prompt so the model avoids repeats', async () => {
+  const client = fakeClient({ outputs: [{ role: 'The New One', logline: 'Fresh.' }] });
+  await writer(client).writeRole({ text: 'hi', category: '', avoid: ['The Snack Critic', 'The Night Owl'] });
+  const gen = JSON.stringify(client.calls.find((c) => c[0] === 'responses')[1]);
+  assert.match(gen, /The Snack Critic/);
+  assert.match(gen, /The Night Owl/);
+});
+
+test('output token budget leaves room for reasoning models; reasoning effort is opt-in', async () => {
+  const client = fakeClient({ outputs: [{ role: 'The New One', logline: 'Fresh.' }] });
+  await writer(client).writeRole({ text: 'hi', category: '' });
+  let req = client.calls.find((c) => c[0] === 'responses')[1];
+  assert.ok(req.max_output_tokens >= 400);
+  assert.strictEqual(req.reasoning, undefined);
+  const c2 = fakeClient({ outputs: [{ role: 'The New One', logline: 'Fresh.' }] });
+  await writer(c2, { reasoningEffort: 'minimal' }).writeRole({ text: 'hi', category: '' });
+  req = c2.calls.find((c) => c[0] === 'responses')[1];
+  assert.deepStrictEqual(req.reasoning, { effort: 'minimal' });
+});

@@ -28,6 +28,7 @@ function loadConfig(env = process.env) {
     twitchClientId: (env.TWITCH_CLIENT_ID || '').trim(),
     twitchClientSecret: (env.TWITCH_CLIENT_SECRET || '').trim(),
     openaiApiKey: (env.OPENAI_API_KEY || '').trim(),
+    openaiReasoningEffort: (env.OPENAI_REASONING_EFFORT || '').trim().toLowerCase(),
     openaiModel: (env.OPENAI_MODEL || 'gpt-5-mini').trim(),
     controlPassword: env.CONTROL_PASSWORD || '',
     announceInChat: flag(env.ANNOUNCE_IN_CHAT),
