@@ -13,6 +13,7 @@ const { createRoleWriter, loadFallbackRoles } = require('./roles');
 const { createCastingEngine } = require('./casting');
 const { createCategoryLookup } = require('./category');
 const { createAnnouncer } = require('./announce');
+const { createTitleWriter, createCreditsRoller } = require('./credits');
 
 const config = loadConfig();
 const log = createLogger();
@@ -25,21 +26,35 @@ const auth = config.hasTwitchCreds
 const server = http.createServer();
 const hub = createHub({ server, log });
 
+const getOpenAI = createOpenAIGetter({ apiKey: config.openaiApiKey });
 const roles = createRoleWriter({
-  getClient: createOpenAIGetter({ apiKey: config.openaiApiKey }),
+  getClient: getOpenAI,
   model: config.openaiModel,
   reasoningEffort: config.openaiReasoningEffort,
   fallbackRoles: loadFallbackRoles(config.dataDir),
   log,
 });
+const categoryFor = auth ? createCategoryLookup({ auth }) : async () => '';
+const broadcasterIds = new Map(); // channel -> broadcaster id, learned from chat events
+let creditsRoller = null;
 const announcer = auth && config.announceInChat ? createAnnouncer({ auth, config, log }) : null;
 const casting = createCastingEngine({
   config,
   store: createJsonStore(config.dataDir),
   roles,
   emit: (channel, event) => hub.broadcast(channel, event),
-  getCategory: auth ? createCategoryLookup({ auth }) : async () => '',
+  getCategory: categoryFor,
+  onCredits: (channel) => { creditsRoller.roll(channel); },
   announce: announcer ? (id, text) => announcer.send(id, text) : undefined,
+  log,
+});
+
+creditsRoller = createCreditsRoller({
+  getCast: (c) => casting.getCast(c),
+  getEpisode: (c) => casting.getEpisode(c),
+  writeTitle: createTitleWriter({ getClient: getOpenAI, model: config.openaiModel, reasoningEffort: config.openaiReasoningEffort, log }).writeTitle,
+  getCategory: (c) => categoryFor(broadcasterIds.get(c)),
+  emit: (channel, event) => hub.broadcast(channel, event),
   log,
 });
 
@@ -54,7 +69,7 @@ server.on('error', (err) => {
 
 const chat = createChatSource({
   config, auth, log,
-  onChat: (e) => { casting.handleChat(e); },
+  onChat: (e) => { if (e.broadcasterId) broadcasterIds.set(e.channel, e.broadcasterId); casting.handleChat(e); },
   onRaid: (e) => { casting.handleRaid(e); },
 });
 if (chat) {
