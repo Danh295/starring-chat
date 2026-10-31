@@ -77,3 +77,11 @@ test('MAX_CAST sets the per-episode cap, default 40', () => {
   assert.strictEqual(loadConfig({ MAX_CAST: '12' }).maxCastPerEpisode, 12);
   assert.strictEqual(loadConfig({ MAX_CAST: '-3' }).maxCastPerEpisode, 40);
 });
+
+test('CARD_INTERVAL_MS defaults to 8000, accepts 0, rejects junk', () => {
+  assert.strictEqual(loadConfig({}).cardIntervalMs, 8000);
+  assert.strictEqual(loadConfig({ CARD_INTERVAL_MS: '0' }).cardIntervalMs, 0);
+  assert.strictEqual(loadConfig({ CARD_INTERVAL_MS: '2500' }).cardIntervalMs, 2500);
+  assert.strictEqual(loadConfig({ CARD_INTERVAL_MS: '-5' }).cardIntervalMs, 8000);
+  assert.strictEqual(loadConfig({ CARD_INTERVAL_MS: 'x' }).cardIntervalMs, 8000);
+});

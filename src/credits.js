@@ -89,7 +89,7 @@ function createTitleWriter({ getClient, model, log, timeoutMs = 3000, reasoningE
 }
 
 // Orchestrates one credits roll per channel at a time.
-function createCreditsRoller({ getCast, getEpisode, writeTitle, getCategory = async () => '', emit, log, now = Date.now, cooldownExtraMs = 8000 }) {
+function createCreditsRoller({ getCast, getEpisode, writeTitle, getCategory = async () => '', emit, log, now = Date.now, cooldownExtraMs = 8000, lockDivisor = 1 }) {
   const busyUntil = new Map();
   return {
     async roll(channel) {
@@ -98,7 +98,7 @@ function createCreditsRoller({ getCast, getEpisode, writeTitle, getCategory = as
       try {
         const cast = getCast(channel);
         if (!cast.length) return { rolled: false, reason: 'empty' };
-        busyUntil.set(channel, now() + SCROLL_MS + cooldownExtraMs); // claim the slot before awaiting
+        busyUntil.set(channel, now() + (SCROLL_MS + cooldownExtraMs) / lockDivisor); // claim the slot before awaiting
         claimed = true;
         const episode = getEpisode(channel);
         let category = '';

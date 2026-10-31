@@ -34,6 +34,7 @@ function loadConfig(env = process.env) {
     controlPassword: env.CONTROL_PASSWORD || '',
     announceInChat: flag(env.ANNOUNCE_IN_CHAT),
     maxCastPerEpisode: Number.isInteger(Number(env.MAX_CAST)) && Number(env.MAX_CAST) > 0 ? Number(env.MAX_CAST) : 40,
+    cardIntervalMs: /^\d+$/.test(String(env.CARD_INTERVAL_MS || '').trim()) ? Number(String(env.CARD_INTERVAL_MS).trim()) : 8000,
     demoSpeed: Number.isFinite(speed) && speed > 0 ? speed : 1,
     dataDir: env.DATA_DIR ? path.resolve(env.DATA_DIR) : path.resolve(__dirname, '..', 'data'),
     hasTwitchCreds: Boolean((env.TWITCH_CLIENT_ID || '').trim() && (env.TWITCH_CLIENT_SECRET || '').trim()),
