@@ -19,9 +19,14 @@ function createTokenStore(dir) {
     save(tokens) {
       fs.mkdirSync(dir, { recursive: true });
       const tmp = `${file}.${process.pid}.tmp`;
-      fs.writeFileSync(tmp, JSON.stringify(tokens), { mode: 0o600 });
-      fs.chmodSync(tmp, 0o600);
-      fs.renameSync(tmp, file);
+      try {
+        fs.writeFileSync(tmp, JSON.stringify(tokens), { mode: 0o600 });
+        fs.chmodSync(tmp, 0o600);
+        fs.renameSync(tmp, file);
+      } catch (err) {
+        try { fs.unlinkSync(tmp); } catch { /* nothing to clean */ }
+        throw err;
+      }
     },
   };
 }
@@ -29,6 +34,8 @@ function createTokenStore(dir) {
 // True only for requests made directly to this machine. A Cloudflare tunnel connects
 // from localhost, so we also reject anything carrying proxy headers or a non-local Host.
 function isLocalRequest(req) {
+  const addr = req.socket && req.socket.remoteAddress;
+  if (addr && !/^(127\.|::1$|::ffff:127\.)/.test(addr)) return false;
   const h = req.headers || {};
   if (h['cf-connecting-ip'] || h['x-forwarded-for'] || h.forwarded || h['x-real-ip']) return false;
   const host = String(h.host || '').replace(/:\d+$/, '').toLowerCase();
@@ -37,8 +44,17 @@ function isLocalRequest(req) {
 
 function createTwitchAuth({ config, store, fetch = globalThis.fetch, now = Date.now }) {
   const redirectUri = `http://localhost:${config.port}/auth/callback`;
-  const pendingStates = new Set();
+  const pendingStates = new Map(); // state -> created-at ms
+  const STATE_TTL_MS = 10 * 60 * 1000;
   let refreshing = null;
+  let memory = null; // latest tokens, so a failed disk save never loses a rotated refresh token
+  const NEED_LOGIN = `Visit http://localhost:${config.port}/auth to log in again.`;
+
+  function readTokens() { return memory || store.load(); }
+  function remember(tokens) {
+    memory = tokens;
+    try { store.save(tokens); } catch (err) { console.error('Could not save tokens to disk:', err.message); }
+  }
 
   async function tokenRequest(params) {
     const res = await fetch(`${ID_BASE}/token`, {
@@ -50,22 +66,31 @@ function createTwitchAuth({ config, store, fetch = globalThis.fetch, now = Date.
         ...params,
       }).toString(),
     });
-    if (!res.ok) throw new Error(`Twitch token request failed (${res.status})`);
+    if (!res.ok) throw new Error(`Twitch token request failed (${res.status}). ${NEED_LOGIN}`);
     const data = await res.json();
-    if (!data.access_token || !data.refresh_token) throw new Error('Twitch token response was incomplete');
-    const tokens = {
+    const refreshToken = data.refresh_token || params.refresh_token;
+    if (!data.access_token || !refreshToken) throw new Error('Twitch token response was incomplete');
+    return {
       access_token: data.access_token,
-      refresh_token: data.refresh_token,
+      refresh_token: refreshToken,
       expires_at: now() + (Number(data.expires_in) || 0) * 1000,
     };
-    store.save(tokens);
-    return tokens;
+  }
+
+  // Confirms the token belongs to BOT_USERNAME (when set) so we never save the wrong account.
+  async function checkAccount(accessToken) {
+    if (!config.botUsername) return;
+    const res = await fetch(`${ID_BASE}/validate`, { headers: { Authorization: `OAuth ${accessToken}` } });
+    const info = res.ok ? await res.json() : {};
+    if (String(info.login || '').toLowerCase() !== config.botUsername) {
+      throw new Error(`Logged in as the wrong account. Log in as ${config.botUsername} and try again.`);
+    }
   }
 
   function startLogin() {
     const state = crypto.randomBytes(16).toString('hex');
     if (pendingStates.size >= 20) pendingStates.delete(pendingStates.values().next().value);
-    pendingStates.add(state);
+    pendingStates.set(state, now());
     const url = new URL(`${ID_BASE}/authorize`);
     url.search = new URLSearchParams({
       client_id: config.twitchClientId,
@@ -78,23 +103,28 @@ function createTwitchAuth({ config, store, fetch = globalThis.fetch, now = Date.
   }
 
   async function completeLogin(code, state) {
-    if (!state || !pendingStates.delete(state)) throw new Error('Unknown or expired login state');
-    await tokenRequest({ grant_type: 'authorization_code', code, redirect_uri: redirectUri });
+    const created = pendingStates.get(state);
+    pendingStates.delete(state);
+    if (created === undefined || now() - created > STATE_TTL_MS) throw new Error('Unknown or expired login state');
+    const tokens = await tokenRequest({ grant_type: 'authorization_code', code, redirect_uri: redirectUri });
+    await checkAccount(tokens.access_token);
+    remember(tokens);
   }
 
   function refresh() {
     if (!refreshing) {
-      const saved = store.load();
-      if (!saved || !saved.refresh_token) return Promise.reject(new Error('No saved tokens. Visit http://localhost:' + config.port + '/auth first.'));
+      const saved = readTokens();
+      if (!saved || !saved.refresh_token) return Promise.reject(new Error(`No saved tokens. ${NEED_LOGIN}`));
       refreshing = tokenRequest({ grant_type: 'refresh_token', refresh_token: saved.refresh_token })
+        .then((tokens) => { remember(tokens); return tokens; })
         .finally(() => { refreshing = null; });
     }
     return refreshing;
   }
 
   async function getAccessToken() {
-    const saved = store.load();
-    if (!saved || !saved.access_token) throw new Error('No saved tokens. Visit http://localhost:' + config.port + '/auth first.');
+    const saved = readTokens();
+    if (!saved || !saved.access_token) throw new Error(`No saved tokens. ${NEED_LOGIN}`);
     if (saved.expires_at - REFRESH_MARGIN_MS > now()) return saved.access_token;
     return (await refresh()).access_token;
   }
@@ -105,8 +135,14 @@ function createTwitchAuth({ config, store, fetch = globalThis.fetch, now = Date.
       ...options,
       headers: { ...(options.headers || {}), Authorization: `Bearer ${token}`, 'Client-Id': config.twitchClientId },
     });
-    let res = await call(await getAccessToken());
-    if (res.status === 401) res = await call((await refresh()).access_token);
+    const used = await getAccessToken();
+    let res = await call(used);
+    if (res.status === 401) {
+      // Another caller may already have refreshed; only refresh if the stored token is the one that failed.
+      const latest = readTokens();
+      const next = latest && latest.access_token !== used ? latest.access_token : (await refresh()).access_token;
+      res = await call(next);
+    }
     return res;
   }
 
@@ -120,6 +156,9 @@ function createAuthRouter({ auth, log }) {
   router.get('/', (_req, res) => res.redirect(auth.startLogin().url));
   router.get('/callback', async (req, res) => {
     const { code, state } = req.query;
+    if (req.query.error) {
+      return res.status(400).send('Login was cancelled or denied on Twitch. Start again at /auth.');
+    }
     if (typeof code !== 'string' || typeof state !== 'string') return res.status(400).send('Missing code or state');
     try {
       await auth.completeLogin(code, state);

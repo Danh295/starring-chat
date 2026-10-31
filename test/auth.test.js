@@ -176,3 +176,96 @@ test('GET /auth/callback with valid state saves tokens and shows a success page 
     assert.strictEqual(store.load().access_token, 'SECRET-A');
   });
 });
+
+test('refresh keeps the old refresh_token when Twitch omits a new one', async () => {
+  const store = createTokenStore(tmp());
+  store.save({ access_token: 'old', refresh_token: 'keep', expires_at: 0 });
+  const fetch = fakeFetch([() => ({ body: { access_token: 'new', expires_in: 100 } })]);
+  const auth = createTwitchAuth({ config: cfg, store, fetch, now: () => 10 });
+  assert.strictEqual(await auth.getAccessToken(), 'new');
+  assert.strictEqual(store.load().refresh_token, 'keep');
+});
+
+test('a failed refresh tells the user to log in again', async () => {
+  const store = createTokenStore(tmp());
+  store.save({ access_token: 'old', refresh_token: 'dead', expires_at: 0 });
+  const fetch = fakeFetch([() => ({ status: 400, body: {} })]);
+  const auth = createTwitchAuth({ config: cfg, store, fetch, now: () => 10 });
+  await assert.rejects(() => auth.getAccessToken(), /\/auth/);
+});
+
+test('login state expires after 10 minutes', async () => {
+  let t = 0;
+  const auth = createTwitchAuth({ config: cfg, store: createTokenStore(tmp()), fetch: fakeFetch([]), now: () => t });
+  const { state } = auth.startLogin();
+  t = 11 * 60 * 1000;
+  await assert.rejects(() => auth.completeLogin('c', state), /state/);
+});
+
+test('helix 401 reuses a token another caller already refreshed', async () => {
+  const store = createTokenStore(tmp());
+  store.save({ access_token: 'stale', refresh_token: 'r', expires_at: 10_000_000 });
+  const fetch = fakeFetch([
+    () => { store.save({ access_token: 'rotated', refresh_token: 'r2', expires_at: 10_000_000 }); return { status: 401 }; },
+    () => ({ body: { ok: 1 } }),
+  ]);
+  const auth = createTwitchAuth({ config: cfg, store, fetch, now: () => 0 });
+  const res = await auth.helix('/users');
+  assert.strictEqual(res.status, 200);
+  assert.strictEqual(fetch.calls.length, 2);
+  assert.strictEqual(fetch.calls[1].opts.headers.Authorization, 'Bearer rotated');
+});
+
+test('rotated tokens survive a failed disk save (kept in memory)', async () => {
+  const real = createTokenStore(tmp());
+  real.save({ access_token: 'old', refresh_token: 'r1', expires_at: 0 });
+  let failSave = false;
+  const store = { load: () => real.load(), save: (t) => { if (failSave) throw new Error('disk full'); real.save(t); } };
+  const fetch = fakeFetch([() => ({ body: { access_token: 'n', refresh_token: 'r2', expires_in: 3600 } })]);
+  const auth = createTwitchAuth({ config: cfg, store, fetch, now: () => 10 });
+  failSave = true;
+  assert.strictEqual(await auth.getAccessToken(), 'n');
+  assert.strictEqual(await auth.getAccessToken(), 'n');
+  assert.strictEqual(fetch.calls.length, 1);
+});
+
+test('token store save failure leaves no tmp file behind', () => {
+  const dir = tmp();
+  const store = createTokenStore(dir);
+  store.save({ a: 1 });
+  fs.mkdirSync(path.join(dir, 'tokens.json.blocker'));
+  assert.deepStrictEqual(fs.readdirSync(dir).filter((f) => f.endsWith('.tmp')), []);
+});
+
+test('login as the wrong account is rejected and not saved', async () => {
+  const store = createTokenStore(tmp());
+  const fetch = fakeFetch([
+    () => ({ body: { access_token: 'A', refresh_token: 'R', expires_in: 3600 } }),
+    () => ({ body: { login: 'someone_else' } }),
+  ]);
+  const auth = createTwitchAuth({ config: { ...cfg, botUsername: 'mybot' }, store, fetch, now: () => 0 });
+  const { state } = auth.startLogin();
+  await assert.rejects(() => auth.completeLogin('c', state), /mybot/);
+  assert.strictEqual(store.load(), null);
+});
+
+test('login as the configured bot account succeeds', async () => {
+  const store = createTokenStore(tmp());
+  const fetch = fakeFetch([
+    () => ({ body: { access_token: 'A', refresh_token: 'R', expires_in: 3600 } }),
+    () => ({ body: { login: 'MyBot' } }),
+  ]);
+  const auth = createTwitchAuth({ config: { ...cfg, botUsername: 'mybot' }, store, fetch, now: () => 0 });
+  const { state } = auth.startLogin();
+  await auth.completeLogin('c', state);
+  assert.strictEqual(store.load().access_token, 'A');
+});
+
+test('callback reports a denied login clearly', async () => {
+  const auth = createTwitchAuth({ config: cfg, store: createTokenStore(tmp()), fetch: fakeFetch([]) });
+  await withApp(auth, async (base) => {
+    const res = await fetch(`${base}/auth/callback?error=access_denied&error_description=nope`);
+    assert.strictEqual(res.status, 400);
+    assert.match(await res.text(), /cancel|denied/i);
+  });
+});
