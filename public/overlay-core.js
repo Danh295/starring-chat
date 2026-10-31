@@ -72,7 +72,28 @@
     };
   }
 
-  const api = { createCardQueue, cardModel };
+  const entries = (list) => (Array.isArray(list) ? list : [])
+    .filter((e) => e && typeof e === 'object')
+    .slice(0, 200)
+    .map((e) => ({ user: text(e.user, 'someone', 25), role: text(e.role, 'The Mystery Guest', 44), regular: e.regular === true }));
+
+  // Everything the credits roll needs to display, from an untrusted event.
+  function creditsModel(msg) {
+    const m = msg && typeof msg === 'object' ? msg : {};
+    const ms = typeof m.scrollMs === 'number' ? m.scrollMs : NaN;
+    return {
+      title: text(m.title, 'The One With Everyone', 100),
+      starring: entries(m.starring),
+      guests: entries(m.guests),
+      extras: entries(m.extras),
+      directedBy: text(m.directedBy, '', 40),
+      castingBy: text(m.castingBy, 'Starring: Chat', 40),
+      compact: m.compact === true,
+      scrollMs: Number.isFinite(ms) ? Math.min(90000, Math.max(20000, ms)) : 45000,
+    };
+  }
+
+  const api = { createCardQueue, cardModel, creditsModel };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.OverlayCore = api;
 })(typeof window !== 'undefined' ? window : globalThis);

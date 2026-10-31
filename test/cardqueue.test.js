@@ -137,3 +137,33 @@ test('reset() clears waiting cards and ends the current one', async () => {
   assert.deepStrictEqual(shown, [1]);
   assert.deepStrictEqual(hidden, [1]);
 });
+
+const { creditsModel } = require('../public/overlay-core');
+
+test('creditsModel normalizes and clips an untrusted credits event', () => {
+  const m = creditsModel({
+    title: 'Episode 1: The One Where ' + 'x'.repeat(200),
+    starring: [{ user: 'A', role: 'The A', regular: true }, { user: null, role: undefined }, 'junk'],
+    guests: [{ user: 'G', role: 'The Special Guest' }], extras: 'nope',
+    directedBy: 'chana', castingBy: 'Starring: Chat', compact: true, scrollMs: 5,
+  });
+  assert.ok(m.title.length <= 100);
+  assert.strictEqual(m.starring.length, 2);
+  assert.deepStrictEqual(m.starring[0], { user: 'A', role: 'The A', regular: true });
+  assert.deepStrictEqual(m.starring[1], { user: 'someone', role: 'The Mystery Guest', regular: false });
+  assert.deepStrictEqual(m.extras, []);
+  assert.strictEqual(m.compact, true);
+  assert.strictEqual(m.scrollMs, 20000);
+  assert.strictEqual(creditsModel(null).starring.length, 0);
+  assert.strictEqual(creditsModel({ scrollMs: 9e9 }).scrollMs, 90000);
+});
+
+test('creditsModel caps very long lists', () => {
+  const many = Array.from({ length: 500 }, (_, i) => ({ user: 'u' + i, role: 'The X' }));
+  assert.strictEqual(creditsModel({ starring: many }).starring.length, 200);
+});
+
+test('creditsModel: null, empty and non-numeric scrollMs fall back to the 45s default', () => {
+  for (const v of [null, '', undefined, 'abc', NaN]) assert.strictEqual(creditsModel({ scrollMs: v }).scrollMs, 45000, String(v));
+  assert.strictEqual(creditsModel({ scrollMs: 30000 }).scrollMs, 30000);
+});

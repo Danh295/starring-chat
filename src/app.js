@@ -5,6 +5,7 @@ const express = require('express');
 const { createAuthRouter } = require('./auth');
 const { requireLocalOrPassword } = require('./guard');
 const { isValidChannel } = require('./hub');
+const { buildCredits, sampleCast } = require('./credits');
 
 // Builds the Express app. All dependencies are passed in so tests can fake them.
 function createApp({ config, auth, log, hub, artDir = path.join(__dirname, '..', 'public', 'art') }) {
@@ -29,6 +30,16 @@ function createApp({ config, auth, log, hub, artDir = path.join(__dirname, '..',
         role: sample[0], logline: sample[1], regular: kind === 'cast' && req.query.regular === '1',
       });
       res.json({ ok: true, delivered });
+    });
+    app.get('/test/credits', requireLocalOrPassword(config), (req, res) => {
+      const channel = String(req.query.channel || '').toLowerCase();
+      if (!isValidChannel(channel)) return res.status(400).json({ error: 'bad channel' });
+      const cast = sampleCast(req.query.n);
+      const delivered = hub.broadcast(channel, {
+        type: 'credits',
+        ...buildCredits({ channel, episode: 1, cast, title: 'Episode 1: The One Where the demo went great' }),
+      });
+      res.json({ ok: true, delivered, total: cast.length });
     });
   }
   // Lets the overlay know which optional hand-drawn art files exist, without 404 probing.

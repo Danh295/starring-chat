@@ -78,3 +78,22 @@ test('/art-manifest lists only the art files that exist', async (t) => {
   const res = await fetch(`http://127.0.0.1:${server.address().port}/art-manifest`);
   assert.deepStrictEqual(await res.json(), { files: ['stamp.png'] });
 });
+
+test('/test/credits sends a sample credits event (size configurable, guarded like /test/cast)', async (t) => {
+  const { base, wsBase } = await boot(t, { CONTROL_PASSWORD: 'pw' });
+  const ws = new WebSocket(`${wsBase}/ws?channel=chana`);
+  t.after(() => ws.terminate());
+  const msgs = [];
+  ws.on('message', (d) => msgs.push(JSON.parse(d.toString())));
+  await new Promise((r) => ws.on('open', r));
+  const res = await fetch(`${base}/test/credits?channel=chana&n=40`);
+  assert.strictEqual(res.status, 200);
+  await new Promise((r) => setTimeout(r, 60));
+  const c = msgs.find((m) => m.type === 'credits');
+  assert.ok(c);
+  assert.strictEqual(c.total, 40);
+  assert.strictEqual(c.compact, true);
+  assert.match(c.title, /^Episode \d+: The One /);
+  assert.strictEqual((await fetch(`${base}/test/credits?channel=chana`, { headers: { 'cf-connecting-ip': '1.1.1.1' } })).status, 403);
+  assert.strictEqual((await fetch(`${base}/test/credits?channel=bad%20name`)).status, 400);
+});
