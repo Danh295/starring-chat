@@ -17,9 +17,15 @@ function createApp({ config, auth, log, hub }) {
       const channel = String(req.query.channel || '').toLowerCase();
       if (!isValidChannel(channel)) return res.status(400).json({ error: 'bad channel' });
       const user = /^[A-Za-z0-9_]{1,25}$/.test(String(req.query.user || '')) ? String(req.query.user) : 'TestViewer';
+      const kind = ['cast', 'guest', 'lurk'].includes(req.query.kind) ? req.query.kind : 'cast';
+      const sample = {
+        cast: ['The Test Subject', 'Appears exactly when the demo needs them.'],
+        guest: ['The Special Guest', 'Arrived with 42 friends in tow.'],
+        lurk: ['The Silent Observer', 'Watching every scene from the back row.'],
+      }[kind];
       const delivered = hub.broadcast(channel, {
-        type: 'cast', id: `test-${Date.now()}`, kind: 'cast', user,
-        role: 'The Test Subject', logline: 'Appears exactly when the demo needs them.',
+        type: 'cast', id: `test-${Date.now()}`, kind, user,
+        role: sample[0], logline: sample[1], regular: kind === 'cast' && req.query.regular === '1',
       });
       res.json({ ok: true, delivered });
     });

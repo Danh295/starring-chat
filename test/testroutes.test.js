@@ -48,3 +48,21 @@ test('/test/cast is blocked through a tunnel without the password, allowed with 
   assert.strictEqual((await fetch(`${base}/test/cast?channel=a`, { headers: { ...tunnel, 'x-control-password': 'bad' } })).status, 403);
   assert.strictEqual((await fetch(`${base}/test/cast?channel=a`, { headers: { ...tunnel, 'x-control-password': 'pw' } })).status, 200);
 });
+
+test('/test/cast can preview guest, lurk and regular cards; bad kinds fall back to cast', async (t) => {
+  const { base, wsBase } = await boot(t);
+  const ws = new WebSocket(`${wsBase}/ws?channel=chana`);
+  t.after(() => ws.terminate());
+  const msgs = [];
+  ws.on('message', (d) => msgs.push(JSON.parse(d.toString())));
+  await new Promise((r) => ws.on('open', r));
+  await fetch(`${base}/test/cast?channel=chana&kind=guest`);
+  await fetch(`${base}/test/cast?channel=chana&kind=lurk`);
+  await fetch(`${base}/test/cast?channel=chana&kind=cast&regular=1`);
+  await fetch(`${base}/test/cast?channel=chana&kind=evil`);
+  await new Promise((r) => setTimeout(r, 80));
+  const casts = msgs.filter((m) => m.type === 'cast');
+  assert.deepStrictEqual(casts.map((c) => c.kind), ['guest', 'lurk', 'cast', 'cast']);
+  assert.deepStrictEqual(casts.map((c) => c.regular), [false, false, true, false]);
+  assert.strictEqual(casts[0].role, 'The Special Guest');
+});

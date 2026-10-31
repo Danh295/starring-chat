@@ -1,22 +1,28 @@
 // Pure card-queue logic, shared by the overlay (browser) and the tests (Node).
 (function (root) {
-  // Shows one card at a time: show(card) -> wait(card) -> hide(card) (hide may return a promise
-  // that resolves when the exit animation ends). Waiting cards beyond `max` drop oldest first.
+  // Shows one card at a time: show(card) -> wait(card, skipped) -> hide(card). `skipped` is a promise
+  // that resolves when the current card should end early; hide may return a promise (exit animation).
+  // Waiting cards beyond `max` drop oldest first.
   function createCardQueue({ show, hide, wait, max = 20 }) {
     const items = [];
     let running = null;
     let active = false;
+    let current = null;
+    let skipCurrent = () => {};
 
     async function loop() {
       while (items.length) {
         const card = items.shift();
+        current = card;
         try {
+          const skipped = new Promise((resolve) => { skipCurrent = resolve; });
           show(card);
-          await wait(card);
+          await wait(card, skipped);
           await hide(card);
         } catch (err) {
           if (typeof console !== 'undefined') console.error('card failed', err);
         }
+        current = null;
       }
       active = false;
     }
@@ -28,11 +34,40 @@
         if (!active) { active = true; running = loop(); }
       },
       clear() { items.length = 0; },
+      skip() { skipCurrent(); },
+      // Removes waiting cards matching `pred`, and ends the current one early if it matches.
+      removeWhere(pred) {
+        let n = 0;
+        for (let i = items.length - 1; i >= 0; i--) if (pred(items[i])) { items.splice(i, 1); n++; }
+        if (current && pred(current)) { skipCurrent(); n++; }
+        return n;
+      },
       idle: () => running || Promise.resolve(),
     };
   }
 
-  const api = { createCardQueue };
+  const LABELS = { cast: 'STARRING', guest: 'SPECIAL GUEST STAR', lurk: 'BACKGROUND EXTRA' };
+  const text = (v, fallback, max) => {
+    const s = typeof v === 'string' ? v.replace(/\s+/g, ' ').trim() : '';
+    return (s || fallback).slice(0, max);
+  };
+
+  // Everything the card needs to display, from an untrusted event.
+  function cardModel(msg) {
+    const m = msg && typeof msg === 'object' ? msg : {};
+    const kind = LABELS[m.kind] ? m.kind : 'cast';
+    const regular = kind === 'cast' && m.regular === true;
+    return {
+      className: kind + (regular ? ' regular' : ''),
+      label: LABELS[kind],
+      who: '@' + text(m.user, 'someone', 25) + ' as',
+      role: text(m.role, 'The Mystery Guest', 44),
+      logline: text(m.logline, '', 110),
+      badge: regular ? 'SERIES REGULAR' : '',
+    };
+  }
+
+  const api = { createCardQueue, cardModel };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.OverlayCore = api;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -59,3 +59,62 @@ test('clear() empties waiting cards', async () => {
   release(); await q.idle();
   assert.deepStrictEqual(shown, [1]);
 });
+
+const { cardModel } = require('../public/overlay-core');
+
+test('cardModel: kinds map to labels and classes', () => {
+  const cast = cardModel({ kind: 'cast', user: 'Pixel', role: 'The Snack Critic', logline: 'Harsh but fair.', regular: false });
+  assert.deepStrictEqual(cast, { className: 'cast', label: 'STARRING', who: '@Pixel as', role: 'The Snack Critic', logline: 'Harsh but fair.', badge: '' });
+  assert.strictEqual(cardModel({ kind: 'guest', user: 'R', role: 'The Special Guest', logline: 'x' }).label, 'SPECIAL GUEST STAR');
+  assert.strictEqual(cardModel({ kind: 'guest', user: 'R', role: 'The Special Guest', logline: 'x' }).className, 'guest');
+  assert.strictEqual(cardModel({ kind: 'lurk', user: 'L', role: 'The Silent Observer', logline: 'x' }).label, 'BACKGROUND EXTRA');
+});
+
+test('cardModel: Series Regulars get a badge and class', () => {
+  const m = cardModel({ kind: 'cast', user: 'V', role: 'The Vet', logline: 'x', regular: true });
+  assert.strictEqual(m.badge, 'SERIES REGULAR');
+  assert.strictEqual(m.className, 'cast regular');
+});
+
+test('cardModel: bad or missing fields are replaced, not shown as "undefined"', () => {
+  const m = cardModel({ kind: 'weird', user: null, role: undefined, logline: 5 });
+  assert.strictEqual(m.className, 'cast');
+  assert.strictEqual(m.who, '@someone as');
+  assert.strictEqual(m.role, 'The Mystery Guest');
+  assert.strictEqual(m.logline, '');
+  assert.strictEqual(cardModel(null).role, 'The Mystery Guest');
+});
+
+test('cardModel: long text is clipped so a card never overflows', () => {
+  const m = cardModel({ kind: 'cast', user: 'u'.repeat(80), role: 'The ' + 'x'.repeat(100), logline: 'y'.repeat(300) });
+  assert.ok(m.who.length <= 32);
+  assert.ok(m.role.length <= 44);
+  assert.ok(m.logline.length <= 110);
+});
+
+test('removeWhere drops waiting cards and skips the current one if it matches', async () => {
+  const shown = []; const hidden = [];
+  const q = createCardQueue({
+    show: (c) => shown.push(c.id), hide: (c) => { hidden.push(c.id); },
+    wait: (_c, skipped) => new Promise((r) => { skipped.then(r); }),
+  });
+  q.push({ id: 1, login: 'a' }); q.push({ id: 2, login: 'b' }); q.push({ id: 3, login: 'a' }); q.push({ id: 4, login: 'c' });
+  await new Promise((r) => setImmediate(r));
+  assert.deepStrictEqual(shown, [1]);
+  const removed = q.removeWhere((c) => c.login === 'a');
+  assert.strictEqual(removed, 2, 'one waiting + the current');
+  await new Promise((r) => setImmediate(r));
+  assert.deepStrictEqual(hidden, [1]);
+  assert.deepStrictEqual(shown, [1, 2]);
+  q.clear(); q.skip(); await q.idle();
+});
+
+test('skip() ends the current hold early', async () => {
+  const hidden = [];
+  const q = createCardQueue({ show: () => {}, hide: (c) => { hidden.push(c.id); }, wait: (_c, skipped) => skipped });
+  q.push({ id: 1 });
+  await new Promise((r) => setImmediate(r));
+  assert.deepStrictEqual(hidden, []);
+  q.skip(); await q.idle();
+  assert.deepStrictEqual(hidden, [1]);
+});
