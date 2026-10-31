@@ -11,6 +11,6 @@ Notes:
 - The URL changes every time the tunnel restarts. Streamers must update their Browser Source after a restart. (A named tunnel on a Cloudflare account keeps a fixed address; see Cloudflare's docs.)
 - Pages and the overlay WebSocket both work over `https` (the overlay switches to `wss` automatically).
 - Anyone with the URL can load an overlay for a channel and see its public cards. Nothing private is sent to overlays.
-- Through the tunnel, `/auth` and the `/test/*` routes are closed. The control API always needs `CONTROL_PASSWORD` in the `x-control-password` header.
-- Set a long, random `CONTROL_PASSWORD` before sharing a tunnel. Wrong guesses are rate limited per client.
+- Through the tunnel, `/auth` is closed. The `/test/*` routes and the control API need `CONTROL_PASSWORD` in the `x-control-password` header (the control API checks it even on localhost).
+- Set a long, random `CONTROL_PASSWORD` before sharing a tunnel. Wrong guesses are rate limited per client (10 per minute) on both the control API and the `/test/*` routes.
 - Stop the tunnel with Ctrl+C when you are done.

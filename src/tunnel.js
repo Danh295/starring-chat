@@ -1,18 +1,19 @@
 'use strict';
 
-const URL_RE = /https:\/\/[a-z0-9-]+\.trycloudflare\.com/i;
+const URL_RE = /https:\/\/([a-z0-9-]+)\.trycloudflare\.com/i;
 
 // Finds the public quick-tunnel URL in a line of cloudflared output.
 function extractTunnelUrl(line) {
   const m = URL_RE.exec(String(line || ''));
-  return m ? m[0] : null;
+  if (!m || m[1].toLowerCase() === 'api') return null; // api.trycloudflare.com is cloudflared's own endpoint
+  return m[0];
 }
 
 // Arguments for cloudflared (an array, never a shell string).
 function tunnelArgs(port) {
   const p = String(port).trim();
   if (!/^\d{1,5}$/.test(p)) throw new Error(`Invalid port: ${port}`);
-  return ['tunnel', '--url', `http://localhost:${p}`];
+  return ['tunnel', '--url', `http://127.0.0.1:${p}`];
 }
 
 function setupInstructions(url) {

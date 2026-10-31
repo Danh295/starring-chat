@@ -14,11 +14,12 @@ test('extractTunnelUrl finds the trycloudflare URL in cloudflared output', () =>
   assert.strictEqual(extractTunnelUrl('INF Requesting new quick Tunnel on trycloudflare.com...'), null);
   assert.strictEqual(extractTunnelUrl('https://evil.example.com/x'), null);
   assert.strictEqual(extractTunnelUrl(''), null);
+  assert.strictEqual(extractTunnelUrl('ERR failed to request quick Tunnel https://api.trycloudflare.com/tunnel'), null, 'cloudflared\'s own API host');
 });
 
 test('tunnelArgs points cloudflared at the local port', () => {
-  assert.deepStrictEqual(tunnelArgs(3000), ['tunnel', '--url', 'http://localhost:3000']);
-  assert.deepStrictEqual(tunnelArgs('8080'), ['tunnel', '--url', 'http://localhost:8080']);
+  assert.deepStrictEqual(tunnelArgs(3000), ['tunnel', '--url', 'http://127.0.0.1:3000']);
+  assert.deepStrictEqual(tunnelArgs('8080'), ['tunnel', '--url', 'http://127.0.0.1:8080']);
   assert.throws(() => tunnelArgs('abc'), /port/i);
 });
 
@@ -77,4 +78,19 @@ test('through the tunnel: /auth is closed even with a localhost Host header', as
   assert.strictEqual((await viaTunnel(port, '/auth')).status, 403);
   assert.strictEqual((await viaTunnel(port, '/auth/callback?code=x&state=y')).status, 403);
   assert.strictEqual((await viaTunnel(port, '/auth', { host: 'localhost:3000' })).status, 403, 'proxy headers alone are enough to refuse');
+});
+
+test('/test routes rate-limit wrong passwords arriving through the tunnel', async (t) => {
+  const { createAuthLimiter } = require('../src/guard');
+  const config = loadConfig({ CHANNELS: 'chana', CONTROL_PASSWORD: 'pw' });
+  const http2 = http.createServer();
+  const hub = createHub({ server: http2, log: quiet });
+  const app = createApp({ config, log: quiet, hub, authLimiter: createAuthLimiter({ max: 3 }) });
+  http2.on('request', app);
+  await new Promise((r) => http2.listen(0, '127.0.0.1', r));
+  t.after(() => { hub.close(); http2.closeAllConnections(); http2.close(); });
+  const port = http2.address().port;
+  for (let i = 0; i < 3; i++) assert.strictEqual((await viaTunnel(port, '/test/cast?channel=chana', { 'x-control-password': 'nope' })).status, 403);
+  assert.strictEqual((await viaTunnel(port, '/test/cast?channel=chana', { 'x-control-password': 'pw' })).status, 429);
+  assert.strictEqual((await viaTunnel(port, '/test/cast?channel=chana')).status, 429, 'blocked clients stay blocked');
 });

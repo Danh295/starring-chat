@@ -2,6 +2,16 @@
 const crypto = require('node:crypto');
 const { isLocalRequest } = require('./auth');
 
+const LOOPBACK_RE = /^(127\.|::1$|::ffff:127\.)/;
+
+// Who is calling? cf-connecting-ip is only believed when the connection itself comes from this
+// machine (the Cloudflare tunnel); a direct client cannot spoof its way to a fresh limiter bucket.
+function clientKey(req) {
+  const addr = String((req.socket && req.socket.remoteAddress) || 'unknown');
+  const cf = (req.headers || {})['cf-connecting-ip'];
+  return LOOPBACK_RE.test(addr) && cf ? String(cf) : addr;
+}
+
 const digest = (s) => crypto.createHash('sha256').update(String(s)).digest();
 
 // Constant-time password check. An unset (empty) password never matches.
@@ -12,7 +22,7 @@ function checkPassword(expected, given) {
 
 // Allows direct localhost requests; anything arriving through a tunnel needs the
 // control password in the x-control-password header (never in a URL).
-function requireLocalOrPassword(config) {
+function requireLocalOrPassword(config, limiter) {
   return (req, res, next) => {
     if (isLocalRequest(req)) {
       // Block cross-site pages from poking the local server (CSRF) while allowing
@@ -23,7 +33,10 @@ function requireLocalOrPassword(config) {
       if (origin && !/^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/i.test(origin)) return res.status(403).send('Forbidden');
       return next();
     }
+    const key = clientKey(req);
+    if (limiter && limiter.blocked(key)) return res.status(429).send('Too many attempts');
     if (checkPassword(config.controlPassword, req.headers['x-control-password'])) return next();
+    if (limiter && req.headers['x-control-password'] !== undefined) limiter.fail(key);
     return res.status(403).send('Forbidden');
   };
 }
@@ -54,4 +67,4 @@ function createAuthLimiter({ max = 10, windowMs = 60_000, now = Date.now, maxKey
   };
 }
 
-module.exports = { checkPassword, requireLocalOrPassword, createAuthLimiter };
+module.exports = { checkPassword, requireLocalOrPassword, createAuthLimiter, clientKey, LOOPBACK_RE };

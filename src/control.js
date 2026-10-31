@@ -1,19 +1,9 @@
 'use strict';
 const express = require('express');
-const { checkPassword } = require('./guard');
+const { checkPassword, clientKey, LOOPBACK_RE } = require('./guard');
 const { isValidChannel } = require('./hub');
 
 const LOGIN_RE = /^[a-z0-9_]{1,25}$/;
-const LOOPBACK_RE = /^(127\.|::1$|::ffff:127\.)/;
-
-// Who is calling? cf-connecting-ip is only believed when the connection itself comes from this
-// machine (the Cloudflare tunnel); a direct client cannot spoof its way to a fresh limiter bucket.
-function clientKey(req) {
-  const addr = String((req.socket && req.socket.remoteAddress) || 'unknown');
-  const cf = req.headers['cf-connecting-ip'];
-  return LOOPBACK_RE.test(addr) && cf ? String(cf) : addr;
-}
-
 // Control API for the streamer's control page. Every request needs the password in the
 // x-control-password header (never a URL), including from localhost.
 function createControlRouter({ config, casting, credits, hub, limiter, log }) {
