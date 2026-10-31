@@ -19,7 +19,7 @@ function createApp({ config, auth, log, hub, casting, credits, authLimiter = cre
   }
   if (hub) {
     // Fake events for trying the overlay. Localhost only, or the control password through a tunnel.
-    app.get('/test/cast', requireLocalOrPassword(config), (req, res) => {
+    app.get('/test/cast', requireLocalOrPassword(config, authLimiter), (req, res) => {
       const channel = String(req.query.channel || '').toLowerCase();
       if (!isValidChannel(channel)) return res.status(400).json({ error: 'bad channel' });
       const user = /^[A-Za-z0-9_]{1,25}$/.test(String(req.query.user || '')) ? String(req.query.user) : 'TestViewer';
@@ -35,7 +35,7 @@ function createApp({ config, auth, log, hub, casting, credits, authLimiter = cre
       });
       res.json({ ok: true, delivered });
     });
-    app.get('/test/credits', requireLocalOrPassword(config), (req, res) => {
+    app.get('/test/credits', requireLocalOrPassword(config, authLimiter), (req, res) => {
       const channel = String(req.query.channel || '').toLowerCase();
       if (!isValidChannel(channel)) return res.status(400).json({ error: 'bad channel' });
       const cast = sampleCast(req.query.n);
