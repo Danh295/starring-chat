@@ -58,7 +58,7 @@ creditsRoller = createCreditsRoller({
   log,
 });
 
-const app = createApp({ config, auth, log, hub, casting });
+const app = createApp({ config, auth, log, hub, casting, credits: creditsRoller });
 server.on('request', app);
 server.listen(config.port, () =>
   log.info(`Starring: Chat listening on http://localhost:${config.port}`));

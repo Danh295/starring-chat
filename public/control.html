@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Starring: Chat control</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bowlby+One&family=Nunito:wght@600;800&display=swap">
+<link rel="stylesheet" href="pages.css">
+</head>
+<body>
+<main>
+  <h1>Control room</h1>
+  <p class="lead">Run the show from here. Every button asks the server with your password.</p>
+
+  <section class="panel" id="login">
+    <div class="row">
+      <div style="flex:1 1 200px"><label for="chan">Channel</label><input id="chan" type="text" autocomplete="off" autocapitalize="none" spellcheck="false"></div>
+      <div style="flex:1 1 200px"><label for="pw">Control password</label><input id="pw" type="password" autocomplete="current-password"></div>
+    </div>
+    <p class="row" style="margin-top:12px"><button id="connect" type="button">Connect</button></p>
+  </section>
+
+  <p id="msg" class="status" role="status" aria-live="polite"></p>
+
+  <section id="panel" class="hidden">
+    <p>Episode <span class="pill" id="episode">-</span> <span class="pill paused hidden" id="pausedPill">casting paused</span></p>
+    <div class="grid">
+      <button id="testCard" type="button" class="secondary">Test card</button>
+      <button id="credits" type="button">Roll credits</button>
+      <button id="pause" type="button" class="secondary">Pause casting</button>
+      <button id="resume" type="button" class="secondary">Resume casting</button>
+      <button id="newEpisode" type="button" class="danger">New episode</button>
+    </div>
+    <h2>Tonight's cast</h2>
+    <ul class="cast" id="cast"></ul>
+    <p class="hint" id="empty">Nobody has been cast yet.</p>
+  </section>
+</main>
+<script src="control.js"></script>
+</body>
+</html>

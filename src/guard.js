@@ -28,4 +28,22 @@ function requireLocalOrPassword(config) {
   };
 }
 
-module.exports = { checkPassword, requireLocalOrPassword };
+// Tracks failed password attempts per client so the control password cannot be guessed.
+function createAuthLimiter({ max = 10, windowMs = 60_000, now = Date.now } = {}) {
+  const failures = new Map(); // key -> timestamps of recent failures
+  const recent = (key) => {
+    const list = (failures.get(key) || []).filter((t) => now() - t < windowMs);
+    if (list.length) failures.set(key, list); else failures.delete(key);
+    return list;
+  };
+  return {
+    blocked: (key) => recent(key).length >= max,
+    fail(key) {
+      const list = recent(key);
+      list.push(now());
+      failures.set(key, list);
+    },
+  };
+}
+
+module.exports = { checkPassword, requireLocalOrPassword, createAuthLimiter };

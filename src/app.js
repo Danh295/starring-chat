@@ -3,16 +3,20 @@ const fs = require('node:fs');
 const path = require('node:path');
 const express = require('express');
 const { createAuthRouter } = require('./auth');
-const { requireLocalOrPassword } = require('./guard');
+const { requireLocalOrPassword, createAuthLimiter } = require('./guard');
+const { createControlRouter } = require('./control');
 const { isValidChannel } = require('./hub');
 const { buildCredits, sampleCast } = require('./credits');
 
 // Builds the Express app. All dependencies are passed in so tests can fake them.
-function createApp({ config, auth, log, hub, artDir = path.join(__dirname, '..', 'public', 'art') }) {
+function createApp({ config, auth, log, hub, casting, credits, authLimiter = createAuthLimiter(), artDir = path.join(__dirname, '..', 'public', 'art') }) {
   const app = express();
   app.disable('x-powered-by');
   app.locals.config = config;
   if (auth) app.use('/auth', createAuthRouter({ auth, log }));
+  if (hub && casting && credits) {
+    app.use('/api/control', createControlRouter({ config, casting, credits, hub, limiter: authLimiter, log: log || console }));
+  }
   if (hub) {
     // Fake events for trying the overlay. Localhost only, or the control password through a tunnel.
     app.get('/test/cast', requireLocalOrPassword(config), (req, res) => {
