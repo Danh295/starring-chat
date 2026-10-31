@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Starring: Chat setup</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bowlby+One&family=Nunito:wght@600;800&display=swap">
+<link rel="stylesheet" href="pages.css">
+</head>
+<body>
+<main>
+  <h1>Starring: Chat</h1>
+  <p class="lead">Turn your chat into the cast of a sitcom. Setup takes about two minutes, and there is nothing to download.</p>
+
+  <section class="panel" aria-labelledby="s0">
+    <h2 id="s0" style="margin-top:0">1. Your channel</h2>
+    <label for="channel">Twitch channel name</label>
+    <div class="row">
+      <input id="channel" type="text" inputmode="text" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="for example: pixelbean">
+      <button id="make" type="button">Get my overlay URL</button>
+    </div>
+    <p id="err" class="status err" role="alert"></p>
+    <div id="result" class="hidden">
+      <label for="url">Your overlay URL</label>
+      <div id="url" class="url"></div>
+      <button id="copy" type="button">Copy URL</button>
+      <span id="copied" class="status ok" role="status"></span>
+    </div>
+  </section>
+
+  <section aria-labelledby="s2">
+    <h2 id="s2">2. Add it to OBS or Streamlabs</h2>
+    <ol class="steps">
+      <li>In your scene, click <b>+</b> under Sources and choose <b>Browser</b> (Streamlabs: <b>Browser Source</b>).</li>
+      <li>Paste your overlay URL. Set <b>Width 1920</b> and <b>Height 1080</b>, and tick <b>Control audio via OBS</b> so the little sting sound is part of your mix.</li>
+      <li>Click OK and type in your own chat. Your first message gets a role card in the bottom left. Remove the source any time to turn it off.</li>
+    </ol>
+    <p class="hint">Cards appear one at a time and stay for a few seconds, so they never cover your game for long.</p>
+  </section>
+
+  <section class="panel" aria-labelledby="s3">
+    <h2 id="s3" style="margin-top:0">3. Tell chat what is happening</h2>
+    <p class="hint">Paste this into chat once (it has no links, so link filters leave it alone):</p>
+    <div id="notice" class="url"></div>
+    <button id="copyNotice" type="button" class="secondary">Copy chat message</button>
+    <span id="copiedNotice" class="status ok" role="status"></span>
+  </section>
+
+  <section aria-labelledby="s4">
+    <h2 id="s4">Chat commands</h2>
+    <ul>
+      <li><code>!lurk</code> anyone: become a Background Extra.</li>
+      <li><code>!nocast</code> anyone: opt out. Your card is removed and you are never cast again.</li>
+      <li><code>!credits</code> you or a mod: roll the end credits (about 45 seconds).</li>
+      <li><code>!newepisode</code> you or a mod: start a fresh episode with a clean cast.</li>
+      <li><code>!uncast @name</code> you or a mod: remove someone from tonight's cast.</li>
+    </ul>
+    <p class="hint">Prefer buttons? Open the <a href="control.html" id="controlLink" style="color:var(--gold)">control page</a> (needs your <code>CONTROL_PASSWORD</code>).</p>
+  </section>
+</main>
+<script src="setup-core.js"></script>
+<script src="setup.js"></script>
+</body>
+</html>
