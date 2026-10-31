@@ -95,3 +95,24 @@ test('a throwing handler does not break parsing', async (t) => {
   sock.send('@user-id=1;display-name=A :a!a@a PRIVMSG #c :one\r\n@user-id=2;display-name=B :b!b@b PRIVMSG #c :two\r\n');
   await until(() => got.length === 1);
 });
+
+test('a silent connection is treated as stale and reconnected', async (t) => {
+  const wss = new WebSocketServer({ port: 0 });
+  await new Promise((r) => wss.on('listening', r));
+  let count = 0; wss.on('connection', () => { count++; });
+  const client = createIrcClient({
+    config: { channels: ['c'] }, log: quiet, endpoint: `ws://127.0.0.1:${wss.address().port}`,
+    onChat() {}, onRaid() {}, backoff: () => 10, staleMs: 60,
+  });
+  t.after(() => { client.stop(); wss.clients.forEach((c) => c.terminate()); wss.close(); });
+  client.start();
+  await until(() => count >= 2, 3000);
+});
+
+test('a RECONNECT command from Twitch triggers a reconnect', async (t) => {
+  const s = await setup(t);
+  await until(() => s.received.includes('JOIN #chana'));
+  s.received.length = 0;
+  s.send(':tmi.twitch.tv RECONNECT');
+  await until(() => s.received.includes('JOIN #chana'));
+});

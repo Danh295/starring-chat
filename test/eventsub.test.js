@@ -258,3 +258,89 @@ test('a failed reconnect url does not open a duplicate connection; the old socke
   tw.sockets[0].terminate();           // Twitch closes the old one (4004)
   await until(() => tw.sockets.length === 3);
 });
+
+test('start() keeps retrying the user lookup until it works', async (t) => {
+  const tw = await fakeTwitch(); t.after(tw.close);
+  const real = fakeAuth();
+  let fails = 2;
+  const auth = { calls: real.calls, helix: async (p, o) => { if (p.startsWith('/users') && fails-- > 0) throw new Error('No saved tokens'); return real.helix(p, o); } };
+  const { client } = makeClient(t, { auth, endpoint: tw.url() });
+  client.start();
+  await until(() => tw.sockets.length === 1, 3000);
+});
+
+test('stop() also closes a migration socket that has not been welcomed', async (t) => {
+  const tw = await fakeTwitch(); t.after(tw.close);
+  const { client } = makeClient(t, { endpoint: tw.url() });
+  await client.start();
+  await until(() => tw.sockets.length === 1);
+  tw.welcome(tw.sockets[0]);
+  tw.send(tw.sockets[0], 'session_reconnect', { session: { reconnect_url: tw.url('/reconnect') } });
+  await until(() => tw.sockets.length === 2);
+  client.stop();
+  await until(() => tw.sockets[1].readyState === 3);
+});
+
+test('old socket closing mid-migration does not open a competing connection', async (t) => {
+  const tw = await fakeTwitch(); t.after(tw.close);
+  const { client, events } = makeClient(t, { endpoint: tw.url() });
+  await client.start();
+  await until(() => tw.sockets.length === 1);
+  tw.welcome(tw.sockets[0]);
+  tw.send(tw.sockets[0], 'session_reconnect', { session: { reconnect_url: tw.url('/reconnect') } });
+  await until(() => tw.sockets.length === 2);
+  tw.sockets[0].terminate();
+  await new Promise((r) => setTimeout(r, 60));
+  assert.strictEqual(tw.sockets.length, 2);
+  tw.welcome(tw.sockets[1], 'sess2');
+  tw.send(tw.sockets[1], 'notification', chatPayload(), { id: 'after' });
+  await until(() => events.chat.length === 1);
+  assert.strictEqual(tw.sockets.length, 2);
+});
+
+test('subscriptions are requested in parallel so they land inside the 10s window', async (t) => {
+  const tw = await fakeTwitch(); t.after(tw.close);
+  const real = fakeAuth();
+  let release; const gate = new Promise((r) => { release = r; });
+  let inFlight = 0;
+  const auth = { calls: real.calls, helix: async (p, o) => {
+    if (p === '/eventsub/subscriptions') { inFlight++; await gate; }
+    return real.helix(p, o);
+  } };
+  const { client } = makeClient(t, { auth, endpoint: tw.url() });
+  await client.start();
+  await until(() => tw.sockets.length === 1);
+  tw.welcome(tw.sockets[0]);
+  await until(() => inFlight === 4);
+  release();
+});
+
+test('user lookups are batched in groups of 100 logins', async (t) => {
+  const tw = await fakeTwitch(); t.after(tw.close);
+  const channels = Array.from({ length: 150 }, (_, i) => `ch${i}`);
+  const users = { mybot: '1' }; channels.forEach((c, i) => { users[c] = String(100 + i); });
+  const auth = fakeAuth({ users });
+  const client = createEventSubClient({
+    config: { botUsername: 'mybot', channels }, auth, log: quiet, onChat() {}, onRaid() {}, endpoint: tw.url(), backoff: () => 10,
+  });
+  t.after(() => client.stop());
+  await client.start();
+  assert.strictEqual(auth.calls.filter((c) => c.path.startsWith('/users')).length, 2);
+  await until(() => tw.sockets.length === 1);
+});
+
+test('logs a clear error when no chat subscription could be created', async (t) => {
+  const tw = await fakeTwitch(); t.after(tw.close);
+  const errors = [];
+  const auth = fakeAuth({ failTypes: ['channel.chat.message'] });
+  const client = createEventSubClient({
+    config: { botUsername: 'mybot', channels: ['chana'] }, auth,
+    log: { ...quiet, error: (...a) => errors.push(a.join(' ')) },
+    onChat() {}, onRaid() {}, endpoint: tw.url(), backoff: () => 10,
+  });
+  t.after(() => client.stop());
+  await client.start();
+  await until(() => tw.sockets.length === 1);
+  tw.welcome(tw.sockets[0]);
+  await until(() => errors.some((e) => /No chat subscriptions/i.test(e)));
+});

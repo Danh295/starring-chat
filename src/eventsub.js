@@ -1,11 +1,10 @@
 'use strict';
 const WebSocket = require('ws');
+const { defaultBackoff } = require('./backoff');
 
 const DEFAULT_ENDPOINT = 'wss://eventsub.wss.twitch.tv/ws';
 const SEEN_LIMIT = 500;
 
-// Exponential backoff: 1s, 2s, 4s ... capped at 30s.
-const defaultBackoff = (attempt) => Math.min(30_000, 1000 * 2 ** attempt);
 
 // Reads chat through Twitch EventSub over WebSocket.
 // `auth.helix` makes authenticated Helix calls; `onChat` / `onRaid` receive normalized events.
@@ -15,7 +14,10 @@ function createEventSubClient({
 }) {
   let stopped = false;
   let current = null;       // socket we are listening on
+  let pending = null;       // migration socket opened by session_reconnect, not yet welcomed
+  let activeSession = null; // session id of the latest welcome
   let attempt = 0;
+  let startAttempt = 0;
   let retryTimer = null;
   let botId = null;
   const channelIds = new Map(); // login -> user id
@@ -23,12 +25,15 @@ function createEventSubClient({
   const seen = new Set();
 
   async function lookupUsers() {
-    const logins = [config.botUsername, ...config.channels];
-    const query = [...new Set(logins)].map((l) => `login=${encodeURIComponent(l)}`).join('&');
-    const res = await auth.helix(`/users?${query}`);
-    if (!res.ok) throw new Error(`Could not look up Twitch users (${res.status})`);
-    const { data = [] } = await res.json();
-    const byLogin = new Map(data.map((u) => [u.login.toLowerCase(), u.id]));
+    const logins = [...new Set([config.botUsername, ...config.channels])].filter(Boolean);
+    const byLogin = new Map();
+    for (let i = 0; i < logins.length; i += 100) { // Helix accepts at most 100 logins per call
+      const query = logins.slice(i, i + 100).map((l) => `login=${encodeURIComponent(l)}`).join('&');
+      const res = await auth.helix(`/users?${query}`);
+      if (!res.ok) throw new Error(`Could not look up Twitch users (${res.status})`);
+      const { data = [] } = await res.json();
+      data.forEach((u) => byLogin.set(u.login.toLowerCase(), u.id));
+    }
     botId = byLogin.get(config.botUsername) || null;
     if (!botId) throw new Error(`Bot account "${config.botUsername}" was not found on Twitch`);
     for (const ch of config.channels) {
@@ -37,28 +42,37 @@ function createEventSubClient({
     }
   }
 
+  // Creates every subscription in parallel (Twitch closes sessions with none within 10s).
   async function subscribe(sessionId) {
+    const jobs = [];
     for (const [login, id] of channelIds) {
       for (const type of ['channel.chat.message', 'channel.chat.notification']) {
-        try {
-          const res = await auth.helix('/eventsub/subscriptions', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              type, version: '1',
-              condition: { broadcaster_user_id: id, user_id: botId },
-              transport: { method: 'websocket', session_id: sessionId },
-            }),
-          });
-          if (!res.ok) {
+        jobs.push((async () => {
+          if (activeSession !== sessionId) return false; // a newer session replaced this one
+          try {
+            const res = await auth.helix('/eventsub/subscriptions', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                type, version: '1',
+                condition: { broadcaster_user_id: id, user_id: botId },
+                transport: { method: 'websocket', session_id: sessionId },
+              }),
+            });
+            if (res.ok) return type === 'channel.chat.message';
             const detail = typeof res.text === 'function' ? await res.text() : '';
             const msg = `Subscribing to ${type} for ${login} failed (${res.status}) ${detail}`.trim();
             if (type === 'channel.chat.message') log.error(msg); else log.warn(msg);
+          } catch (err) {
+            log.error(`Subscribing to ${type} for ${login} failed:`, err.message);
           }
-        } catch (err) {
-          log.error(`Subscribing to ${type} for ${login} failed:`, err.message);
-        }
+          return false;
+        })());
       }
+    }
+    const results = await Promise.all(jobs);
+    if (jobs.length && activeSession === sessionId && !results.some(Boolean)) {
+      log.error('No chat subscriptions were created, so no chat will arrive. Check the bot token scopes (user:read:chat) and visit /auth again.');
     }
   }
 
@@ -102,12 +116,18 @@ function createEventSubClient({
         ws.terminate();
       }, timeoutMs);
     };
+    armKeepalive(); // also covers a connection that never sends its welcome
     ws.on('close', () => {
       clearTimeout(keepaliveTimer);
+      ws.dead = true;
       if (ws.retired || stopped) return;
-      // A migration socket that dies before its welcome changes nothing: the old socket
-      // stays current, and Twitch closes it (code 4004), which triggers a normal reconnect.
+      if (ws === pending) { // migration socket died before its welcome
+        pending = null;
+        if (!current || current.dead) scheduleReconnect();
+        return;
+      }
       if (ws !== current) return;
+      if (pending) return; // the migration welcome will take over
       scheduleReconnect();
     });
     ws.on('error', (err) => log.warn('EventSub socket error:', err.message));
@@ -115,7 +135,7 @@ function createEventSubClient({
       let msg;
       try { msg = JSON.parse(raw.toString()); } catch { return; }
       const type = msg.metadata && msg.metadata.message_type;
-      if (type !== 'session_welcome' && ws.retired) return;
+      if (ws.retired || stopped) return;
       armKeepalive();
       try {
         if (type === 'session_welcome') {
@@ -123,9 +143,11 @@ function createEventSubClient({
           timeoutMs = (Number(s.keepalive_timeout_seconds) || 10) * msPerSecond * 1.5;
           armKeepalive();
           attempt = 0;
+          activeSession = s.id;
           if (migrating) {
             const old = current;
             current = ws;
+            pending = null;
             if (old && old !== ws) { old.retired = true; old.close(); }
             log.info('EventSub moved to the new connection');
           } else {
@@ -140,7 +162,7 @@ function createEventSubClient({
           if (seen.size > SEEN_LIMIT) seen.delete(seen.values().next().value);
           dispatch(msg);
         } else if (type === 'session_reconnect') {
-          connect(msg.payload.session.reconnect_url, { migrating: true });
+          if (!pending) connect(msg.payload.session.reconnect_url, { migrating: true });
         } else if (type === 'revocation') {
           log.warn('EventSub subscription revoked:', msg.payload && msg.payload.subscription && msg.payload.subscription.type);
         }
@@ -148,7 +170,7 @@ function createEventSubClient({
         log.error('EventSub handler error:', err.stack || err.message);
       }
     });
-    if (!migrating) current = ws;
+    if (migrating) pending = ws; else current = ws;
     return ws;
   }
 
@@ -159,15 +181,30 @@ function createEventSubClient({
     retryTimer = setTimeout(() => { retryTimer = null; connect(endpoint); }, delay);
   }
 
-  return {
-    async start() {
+  // Looks up user ids, then connects. Retries with backoff if the lookup fails
+  // (for example before the first /auth login, or on a network error).
+  async function tryStart() {
+    retryTimer = null;
+    if (stopped) return;
+    try {
       await lookupUsers();
+      startAttempt = 0;
       connect(endpoint);
-    },
+    } catch (err) {
+      const delay = backoff(startAttempt++);
+      log.warn(`EventSub could not start (${err.message}); retrying in ${delay}ms`);
+      if (!stopped) retryTimer = setTimeout(tryStart, delay);
+    }
+  }
+
+  return {
+    start: tryStart,
     stop() {
       stopped = true;
       clearTimeout(retryTimer);
-      if (current) { current.retired = true; current.close(); }
+      for (const sock of [current, pending]) {
+        if (sock) { sock.retired = true; sock.close(); }
+      }
     },
   };
 }

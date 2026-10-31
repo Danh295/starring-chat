@@ -24,7 +24,7 @@ server.on('error', (err) => {
 // Chat events are only logged for now; casting is wired in a later ticket.
 const chat = createChatSource({
   config, auth, log,
-  onChat: (e) => log.info(`[${e.channel}] ${e.chatterLogin}: ${e.text}`),
+  onChat: (e) => log.info(`[${e.channel}] chat message from ${e.chatterLogin}`),
   onRaid: (e) => log.info(`[${e.channel}] raid from ${e.raiderLogin} (${e.viewers})`),
 });
 if (chat) {
