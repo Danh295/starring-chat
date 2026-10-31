@@ -7,6 +7,12 @@ const { createLogger } = require('./logger');
 const { createChatSource } = require('./chat');
 const { createHub } = require('./hub');
 const { createTokenStore, createTwitchAuth } = require('./auth');
+const { createJsonStore } = require('./store');
+const { createOpenAIGetter } = require('./openai');
+const { createRoleWriter, loadFallbackRoles } = require('./roles');
+const { createCastingEngine } = require('./casting');
+const { createCategoryLookup } = require('./category');
+const { createAnnouncer } = require('./announce');
 
 const config = loadConfig();
 const log = createLogger();
@@ -15,9 +21,29 @@ validateConfig(config).forEach((w) => log.warn(w));
 const auth = config.hasTwitchCreds
   ? createTwitchAuth({ config, store: createTokenStore(config.dataDir) })
   : null;
+
 const server = http.createServer();
 const hub = createHub({ server, log });
-const app = createApp({ config, auth, log, hub });
+
+const roles = createRoleWriter({
+  getClient: createOpenAIGetter({ apiKey: config.openaiApiKey }),
+  model: config.openaiModel,
+  reasoningEffort: config.openaiReasoningEffort,
+  fallbackRoles: loadFallbackRoles(config.dataDir),
+  log,
+});
+const announcer = auth && config.announceInChat ? createAnnouncer({ auth, config, log }) : null;
+const casting = createCastingEngine({
+  config,
+  store: createJsonStore(config.dataDir),
+  roles,
+  emit: (channel, event) => hub.broadcast(channel, event),
+  getCategory: auth ? createCategoryLookup({ auth }) : async () => '',
+  announce: announcer ? (id, text) => announcer.send(id, text) : undefined,
+  log,
+});
+
+const app = createApp({ config, auth, log, hub, casting });
 server.on('request', app);
 server.listen(config.port, () =>
   log.info(`Starring: Chat listening on http://localhost:${config.port}`));
@@ -26,11 +52,10 @@ server.on('error', (err) => {
   process.exit(1);
 });
 
-// Chat events are only logged for now; casting is wired in a later ticket.
 const chat = createChatSource({
   config, auth, log,
-  onChat: (e) => log.info(`[${e.channel}] chat message from ${e.chatterLogin}`),
-  onRaid: (e) => log.info(`[${e.channel}] raid from ${e.raiderLogin} (${e.viewers})`),
+  onChat: (e) => { casting.handleChat(e); },
+  onRaid: (e) => { casting.handleRaid(e); },
 });
 if (chat) {
   Promise.resolve(chat.start()).catch((err) => log.error('Chat source failed to start:', err.message));
