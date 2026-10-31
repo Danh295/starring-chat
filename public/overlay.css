@@ -1,9 +1,76 @@
-html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: transparent; font-family: system-ui, sans-serif; color: #fff; }
-#status { position: fixed; left: 24px; top: 24px; padding: 6px 12px; background: rgba(0,0,0,.6); border-radius: 8px; font-size: 18px; transition: opacity .6s; }
+:root {
+  --ink: #fff8e6;
+  --navy: #10142b;
+  --gold: #f5c542;
+  --red: #d7263d;
+  --role-font: 'Bowlby One', 'Arial Black', Impact, sans-serif;
+  --text-font: 'Nunito', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: transparent; font-family: var(--text-font); color: var(--ink); }
+
+#status { position: fixed; left: 24px; top: 24px; padding: 6px 12px; background: rgba(0,0,0,.65); border-radius: 8px; font-size: 20px; font-weight: 700; transition: opacity .6s; }
 #status.hidden { opacity: 0; }
-#stage { position: fixed; left: 40px; bottom: 40px; }
-.card { width: 520px; min-height: 220px; box-sizing: border-box; padding: 20px 24px; background: rgba(20,20,30,.92); border: 3px solid #f5c542; border-radius: 12px; transform: translateX(-640px); transition: transform .5s ease; }
-.card.in { transform: translateX(0); }
-.card .who { font-size: 26px; opacity: .85; }
-.card .role { font-size: 48px; font-weight: 800; line-height: 1.1; margin: 6px 0; }
-.card .logline { font-size: 24px; opacity: .9; }
+
+#stage { position: fixed; left: 40px; bottom: 40px; width: 560px; }
+
+/* ---- the card -------------------------------------------------------- */
+.card { position: relative; width: 520px; min-height: 220px; box-sizing: border-box; transform: translateX(-680px); opacity: 0;
+  transition: transform .55s cubic-bezier(.2,.9,.25,1.05), opacity .35s ease; }
+.card.in { transform: translateX(0); opacity: 1; }
+
+.card .body { position: relative; box-sizing: border-box; min-height: 220px; padding: 40px 28px 22px; border-radius: 14px;
+  background: linear-gradient(160deg, #1a2050 0%, var(--navy) 70%);
+  box-shadow: 0 10px 30px rgba(0,0,0,.55), inset 0 0 0 3px var(--gold), inset 0 0 0 7px var(--navy), inset 0 0 0 9px rgba(245,197,66,.55);
+  transition: opacity .3s ease, transform .35s cubic-bezier(.2,1.4,.4,1); }
+
+/* marquee bulbs along the top and bottom edges */
+.card .body::before, .card .body::after { content: ''; position: absolute; left: 16px; right: 16px; height: 8px;
+  background: radial-gradient(circle, #ffe9a8 35%, rgba(255,233,168,0) 38%) 0 0 / 22px 8px repeat-x; opacity: .9; }
+.card .body::before { top: 14px; }
+.card .body::after { bottom: 10px; }
+
+.card .label { position: absolute; top: -14px; left: 28px; padding: 4px 16px; background: var(--red); color: #fff; font-weight: 800; font-size: 20px;
+  letter-spacing: .16em; border-radius: 6px; box-shadow: 0 3px 8px rgba(0,0,0,.5); }
+.card .who { font-size: 28px; font-weight: 800; color: #cfd6ff; margin-top: 4px; word-break: break-word; text-shadow: 0 2px 3px rgba(0,0,0,.6); }
+.card .role { font-family: var(--role-font); font-size: 52px; line-height: 1.05; margin: 6px 0 8px; color: var(--ink); word-break: break-word;
+  text-shadow: 0 3px 0 rgba(0,0,0,.55), 0 0 18px rgba(245,197,66,.35); }
+.card .logline { padding-right: 70px; font-size: 27px; font-style: italic; font-weight: 700; line-height: 1.2; color: #e9ecff; text-shadow: 0 2px 3px rgba(0,0,0,.6); }
+.card .badge { position: absolute; top: -14px; right: 20px; padding: 4px 14px; background: linear-gradient(#ffe38a, var(--gold)); color: #2a1d00;
+  font-weight: 800; font-size: 18px; letter-spacing: .12em; border-radius: 999px; box-shadow: 0 3px 8px rgba(0,0,0,.5); }
+.card .badge::before { content: '\2605 '; }
+.card .stamp { position: absolute; right: 16px; bottom: 16px; width: 64px; height: 64px; opacity: .85; transform: rotate(-12deg);
+  background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><circle cx='32' cy='32' r='28' fill='none' stroke='%23f5c542' stroke-width='3' stroke-dasharray='4 3'/><polygon points='32,12 37.5,25 52,26 41,35.5 44.5,50 32,42.5 19.5,50 23,35.5 12,26 26.5,25' fill='%23f5c542'/></svg>") center / contain no-repeat; }
+.card.guest .stamp { filter: brightness(.35) sepia(1); }
+
+/* ---- clapperboard intro ---------------------------------------------- */
+.card .clap { position: absolute; left: 0; top: 0; width: 100%; min-height: 220px; display: none; align-items: center; justify-content: center; }
+.card.casting .clap { display: flex; }
+.card.casting .body { opacity: 0; transform: scale(.94); }
+.card .clap-arm { animation: clap .9s ease-in .35s both; }
+@keyframes clap { 0% { transform: rotate(-28deg); } 55% { transform: rotate(-28deg); } 80% { transform: rotate(0deg); } 100% { transform: rotate(0deg); } }
+
+/* ---- Guest Star: gold --------------------------------------------------- */
+.card.guest .body { background: linear-gradient(160deg, #ffe38a 0%, #e8b020 55%, #b98100 100%);
+  box-shadow: 0 10px 30px rgba(0,0,0,.55), inset 0 0 0 3px #fff3c2, inset 0 0 0 7px #8a5f00, inset 0 0 0 9px #fff3c2; }
+.card.guest .label { background: #2a1d00; color: var(--gold); }
+.card.guest .who, .card.guest .logline { color: #3b2800; text-shadow: none; }
+.card.guest .role { color: #1d1300; text-shadow: 0 2px 0 rgba(255,243,194,.7); }
+
+/* ---- Background Extra: faded, a bit ghostly ---------------------------- */
+.card.lurk { filter: saturate(.55); }
+.card.lurk.in { opacity: .72; }
+.card.lurk .body { background: linear-gradient(160deg, rgba(60,66,100,.78), rgba(26,30,60,.78)); backdrop-filter: blur(1px);
+  box-shadow: 0 10px 30px rgba(0,0,0,.4), inset 0 0 0 3px rgba(207,214,255,.6); outline: 3px dashed rgba(207,214,255,.45); outline-offset: -9px; }
+.card.lurk .body::before, .card.lurk .body::after { display: none; }
+.card.lurk .label { background: #59607f; }
+.card.lurk .role { text-shadow: 0 2px 0 rgba(0,0,0,.4); }
+
+/* ---- optional hand-drawn art (public/art/*.png), switched on by overlay.js --- */
+body.has-frame-art .card.cast .body { background: var(--frame-art) center / 100% 100% no-repeat, linear-gradient(160deg, #1a2050 0%, var(--navy) 70%); box-shadow: none; }
+body.has-frame-art .card.guest .body { background: var(--frame-art) center / 100% 100% no-repeat, linear-gradient(160deg, #ffe38a 0%, #e8b020 55%, #b98100 100%); box-shadow: none; }
+body.has-frame-art .card.lurk .body { background: var(--frame-art) center / 100% 100% no-repeat, linear-gradient(160deg, rgba(60,66,100,.78), rgba(26,30,60,.78)); box-shadow: none; outline: none; }
+body.has-frame-art .card .body::before, body.has-frame-art .card .body::after { display: none; }
+body.has-stamp-art .card .stamp { background-image: var(--stamp-art); }
+body.has-bg-art #stage::before { content: ''; position: absolute; inset: -30px -30px -30px -50px; background: var(--bg-art) center / cover no-repeat; opacity: .35; z-index: -1; }
+
+@media (prefers-reduced-motion: reduce) { .card, .card .body { transition: none; } .card .clap-arm { animation: none; } }

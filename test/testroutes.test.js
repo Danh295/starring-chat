@@ -48,3 +48,33 @@ test('/test/cast is blocked through a tunnel without the password, allowed with 
   assert.strictEqual((await fetch(`${base}/test/cast?channel=a`, { headers: { ...tunnel, 'x-control-password': 'bad' } })).status, 403);
   assert.strictEqual((await fetch(`${base}/test/cast?channel=a`, { headers: { ...tunnel, 'x-control-password': 'pw' } })).status, 200);
 });
+
+test('/test/cast can preview guest, lurk and regular cards; bad kinds fall back to cast', async (t) => {
+  const { base, wsBase } = await boot(t);
+  const ws = new WebSocket(`${wsBase}/ws?channel=chana`);
+  t.after(() => ws.terminate());
+  const msgs = [];
+  ws.on('message', (d) => msgs.push(JSON.parse(d.toString())));
+  await new Promise((r) => ws.on('open', r));
+  await fetch(`${base}/test/cast?channel=chana&kind=guest`);
+  await fetch(`${base}/test/cast?channel=chana&kind=lurk`);
+  await fetch(`${base}/test/cast?channel=chana&kind=cast&regular=1`);
+  await fetch(`${base}/test/cast?channel=chana&kind=evil`);
+  await new Promise((r) => setTimeout(r, 80));
+  const casts = msgs.filter((m) => m.type === 'cast');
+  assert.deepStrictEqual(casts.map((c) => c.kind), ['guest', 'lurk', 'cast', 'cast']);
+  assert.deepStrictEqual(casts.map((c) => c.regular), [false, false, true, false]);
+  assert.strictEqual(casts[0].role, 'The Special Guest');
+});
+
+test('/art-manifest lists only the art files that exist', async (t) => {
+  const fs = require('node:fs'); const path = require('node:path'); const os = require('node:os');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sc-art-'));
+  fs.writeFileSync(path.join(dir, 'stamp.png'), 'x');
+  fs.writeFileSync(path.join(dir, 'notes.txt'), 'x');
+  const app = createApp({ config: loadConfig({}), log: quiet, artDir: dir });
+  const server = await new Promise((res) => { const s = app.listen(0, '127.0.0.1', () => res(s)); });
+  t.after(() => { server.closeAllConnections(); server.close(); });
+  const res = await fetch(`http://127.0.0.1:${server.address().port}/art-manifest`);
+  assert.deepStrictEqual(await res.json(), { files: ['stamp.png'] });
+});
