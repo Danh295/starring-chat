@@ -3,12 +3,16 @@ require('dotenv').config();
 const { loadConfig, validateConfig } = require('./config');
 const { createApp } = require('./app');
 const { createLogger } = require('./logger');
+const { createTokenStore, createTwitchAuth } = require('./auth');
 
 const config = loadConfig();
 const log = createLogger();
 validateConfig(config).forEach((w) => log.warn(w));
 
-const app = createApp({ config });
+const auth = config.hasTwitchCreds
+  ? createTwitchAuth({ config, store: createTokenStore(config.dataDir) })
+  : null;
+const app = createApp({ config, auth, log });
 const server = app.listen(config.port, () =>
   log.info(`Starring: Chat listening on http://localhost:${config.port}`));
 server.on('error', (err) => {
