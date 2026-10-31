@@ -17,4 +17,9 @@ Starring: Chat is a Twitch overlay for the Codex x TwitchCon Hackathon. New chat
 - One branch and PR per ticket. Run a code review before merging.
 
 ## Process notes
-The `setup-matt-pocock-skills` and `ask-matt` skills were not available in the build session, so seams were chosen by the agent (listed above).
+The `setup-matt-pocock-skills` and `ask-matt` skills were not available in the build session, so seams were chosen by the agent (listed above). The `tdd` and `code-review` skills were used on every ticket.
+
+## Commands
+- `npm test` runs the whole suite offline.
+- `npm run demo` runs the scripted demo (no keys needed); open `/overlay.html?channel=demo&preview=1`.
+- `npm run tunnel` exposes the server with a Cloudflare quick tunnel.

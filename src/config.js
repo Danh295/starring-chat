@@ -58,4 +58,9 @@ function validateConfig(config) {
   return w;
 }
 
-module.exports = { loadConfig, validateConfig };
+// Command-line flags that override the environment (kept pure: returns a new env object).
+function applyCliFlags(argv, env) {
+  return argv.slice(2).includes('--demo') ? { ...env, DEMO_CHAT: 'true' } : { ...env };
+}
+
+module.exports = { loadConfig, validateConfig, applyCliFlags };

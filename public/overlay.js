@@ -2,6 +2,7 @@
 (function () {
   var params = new URLSearchParams(location.search);
   var channel = (params.get('channel') || '').toLowerCase();
+  if (params.has('preview')) document.body.classList.add('preview'); // dark stand-in backdrop for previews in a normal browser tab
   var stage = document.getElementById('stage');
   var statusEl = document.getElementById('status');
   var clapperTpl = document.getElementById('clapper-tpl');

@@ -90,3 +90,12 @@ test('CARD_INTERVAL_MS is capped at one minute (setTimeout-safe)', () => {
   assert.strictEqual(loadConfig({ CARD_INTERVAL_MS: '99999999999' }).cardIntervalMs, 60000);
   assert.strictEqual(loadConfig({ CARD_INTERVAL_MS: '60000' }).cardIntervalMs, 60000);
 });
+
+test('applyCliFlags: --demo turns on demo mode without touching other settings', () => {
+  const { applyCliFlags } = require('../src/config');
+  assert.deepStrictEqual(applyCliFlags(['node', 'index.js', '--demo'], { PORT: '1' }), { PORT: '1', DEMO_CHAT: 'true' });
+  assert.deepStrictEqual(applyCliFlags(['node', 'index.js'], { PORT: '1' }), { PORT: '1' });
+  const env = { A: 'b' };
+  applyCliFlags(['x', 'y', '--demo'], env);
+  assert.deepStrictEqual(env, { A: 'b' }, 'input is not mutated');
+});
