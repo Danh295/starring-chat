@@ -80,17 +80,17 @@ const clean = (t, max) => String(t || '').replace(/[\u0000-\u001f]+/g, ' ').repl
 function createRoleWriter({ getClient, model, fallbackRoles, log, timeoutMs = 3000, random = Math.random, reasoningEffort = '' }) {
   const fallbacks = fallbackRoles && fallbackRoles.length ? fallbackRoles : DEFAULT_FALLBACKS;
 
-  function pickFallback(avoid = []) {
+  function pickFallback(avoid = [], reason) {
     const free = fallbacks.filter((f) => !avoid.includes(f.role));
     const pool = free.length ? free : fallbacks;
     const f = pool[Math.floor(random() * pool.length)];
-    return { role: f.role, logline: f.logline, source: 'fallback' };
+    return { role: f.role, logline: f.logline, source: 'fallback', reason };
   }
 
   async function generate(client, { text, category, avoid = [] }, signal) {
     const input = clean(text, 300);
     const mod = await client.moderations.create({ model: 'omni-moderation-latest', input }, { signal });
-    if (mod.results[0].flagged) return null;
+    if (mod.results[0].flagged) return { fail: 'flagged' };
 
     const used = avoid.slice(-20).map((r) => clean(r, 40)).filter(Boolean);
     const user = `Stream category: ${clean(category, 80) || 'unknown'}\n`
@@ -105,35 +105,37 @@ function createRoleWriter({ getClient, model, fallbackRoles, log, timeoutMs = 30
     }, { signal });
 
     let parsed;
-    try { parsed = JSON.parse(res.output_text); } catch { return null; }
+    try { parsed = JSON.parse(res.output_text); } catch { return { fail: 'invalid' }; }
     const valid = validateRole(parsed);
-    if (!valid) return null;
+    if (!valid) return { fail: 'invalid' };
 
     const outMod = await client.moderations.create({ model: 'omni-moderation-latest', input: `${valid.role}. ${valid.logline}` }, { signal });
-    if (outMod.results[0].flagged) return null;
+    if (outMod.results[0].flagged) return { fail: 'output-flagged' };
     return valid;
   }
 
   async function writeRole({ text, category = '', avoid = [] }) {
     let client = null;
     try { client = getClient(); } catch (err) { log.warn('OpenAI client unavailable:', err.message); }
-    if (!client) return pickFallback(avoid);
+    if (!client) return pickFallback(avoid, 'no-client');
 
     const controller = new AbortController();
     let timer;
     const deadline = new Promise((resolve) => {
       timer = setTimeout(() => { controller.abort(); resolve('timeout'); }, timeoutMs);
     });
+    let reason = 'error';
     try {
       const result = await Promise.race([generate(client, { text, category, avoid }, controller.signal), deadline]);
-      if (result === 'timeout') log.warn('OpenAI took too long; using a fallback role');
+      if (result === 'timeout') { reason = 'timeout'; log.warn('OpenAI took too long; using a fallback role'); }
+      else if (result && result.fail) reason = result.fail;
       else if (result) return { ...result, source: 'ai' };
     } catch (err) {
       if (!controller.signal.aborted) log.warn('OpenAI role generation failed:', err.message);
     } finally {
       clearTimeout(timer);
     }
-    return pickFallback(avoid);
+    return pickFallback(avoid, reason);
   }
 
   return { writeRole };

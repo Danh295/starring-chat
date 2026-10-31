@@ -355,3 +355,21 @@ test('chat links with unusual TLDs or spelled-out dots are skipped; ordinary typ
   for (const t of ['visit spam.store', 'x.info/y', 'free stuff at foo dot com', 'youtu.be/abc', 't.co/xyz']) assert.ok(hasLink(t), t);
   for (const t of ['good.to be honest', 'cya.me', 'see you.Soon']) assert.ok(!hasLink(t), t);
 });
+
+test('every cast logs one line with login, role and where the role came from, never the chat text', async () => {
+  const lines = [];
+  const log = { info: (...a) => lines.push(a.join(' ')), warn() {}, error() {} };
+  const mk = (writeRole) => createCastingEngine({
+    config: { botUsername: 'mybot', maxCastPerEpisode: 40, resumeWindowMs: 0 }, store: createJsonStore(tmp()),
+    roles: { writeRole }, emit() {}, log,
+  });
+  const ai = mk(async () => ({ role: 'The Snack Critic', logline: 'Fine.', source: 'ai' }));
+  await ai.handleChat(msg('bob', 'my secret opinion about spinach'));
+  const fb = mk(async () => ({ role: 'The Night Owl', logline: 'Fine.', source: 'fallback', reason: 'timeout' }));
+  await fb.handleChat(msg('amy', 'private words here'));
+  await fb.handleChat(msg('quiet', '!lurk'));
+  assert.ok(lines.some((l) => l.includes('@bob') && l.includes('The Snack Critic') && l.includes('(ai)')));
+  assert.ok(lines.some((l) => l.includes('@amy') && l.includes('The Night Owl') && l.includes('(fallback: timeout)')));
+  assert.ok(lines.some((l) => l.includes('@quiet') && l.includes('(lurk)')));
+  assert.ok(!lines.some((l) => /spinach|private words/.test(l)), 'chat text is never logged');
+});

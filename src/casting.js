@@ -97,7 +97,7 @@ function createCastingEngine({
     return null;
   }
 
-  function commit(channel, st, { login, name, kind, role, logline, broadcasterId }) {
+  function commit(channel, st, { login, name, kind, role, logline, broadcasterId, how }) {
     const prev = st.members[login];
     const episodes = (prev && prev.lastEpisode === st.episode) ? prev.episodes : ((prev && prev.episodes) || 0) + 1;
     const regular = kind === 'cast' && episodes >= REGULAR_FROM_EPISODE;
@@ -105,6 +105,7 @@ function createCastingEngine({
     const entry = { login, name, kind, role, logline, regular, episode: st.episode };
     st.cast.set(login, entry);
     emit(channel, { type: 'cast', id: crypto.randomUUID(), channel, kind, user: name, login, role, logline, regular, episode: st.episode });
+    log.info(`Cast @${login} as ${role} in ${channel} (${how || kind})`);
     save(channel, st);
     if (kind === 'cast' && config.announceInChat && broadcasterId) {
       Promise.resolve(announce(broadcasterId, `Now starring @${name} as ${role}`)).catch(() => {});
@@ -137,6 +138,7 @@ function createCastingEngine({
       if (epoch !== st.epoch || st.optouts.has(login) || st.blocked.has(login)) return { action: 'ignored', reason: 'changed' };
       const entry = commit(channel, st, {
         login, name: cleanName(e.chatterName, login), kind: 'cast', role: r.role, logline: r.logline, broadcasterId: e.broadcasterId,
+        how: r.source === 'ai' ? 'ai' : `fallback${r.reason ? ': ' + r.reason : ''}`,
       });
       return { action: 'cast', entry, source: r.source };
     } finally {

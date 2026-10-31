@@ -129,6 +129,12 @@ npm run tunnel           # optional: a public https URL for streamers (see docs/
 
 Open `/setup.html` (through the tunnel URL if the streamer is on another computer), enter the channel, and paste the overlay URL into an OBS Browser Source: 1920x1080, "Control audio via OBS" on. Details and caveats (the URL changes when the tunnel restarts): [docs/tunnel.md](docs/tunnel.md).
 
+### Is the AI actually writing the roles?
+
+Each cast is logged as one line: `Cast @login as The Role in channel (ai)` or `(fallback: reason)`, where the reason is `no-client` (no API key), `timeout`, `flagged`, `invalid`, `output-flagged` or `error`. If you see `timeout`, try a faster model or `OPENAI_REASONING_EFFORT=minimal`. Chat text is never logged.
+
+In a normal browser tab the sting and theme stay silent until you click the page (browser autoplay rules); OBS browser sources are not affected.
+
 ## Bring your own art and audio
 
 The default card, stamp, sting and theme are drawn with CSS/SVG and synthesized in the browser, so the project ships with no copyrighted assets. Drop your own files in to replace them: see [public/art/README.md](public/art/README.md) and [public/audio/README.md](public/audio/README.md).

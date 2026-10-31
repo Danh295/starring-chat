@@ -148,3 +148,19 @@ test('output token budget leaves room for reasoning models; reasoning effort is 
   req = c2.calls.find((c) => c[0] === 'responses')[1];
   assert.deepStrictEqual(req.reasoning, { effort: 'minimal' });
 });
+
+test('fallback results say why: no-client, flagged, invalid, output-flagged, timeout, error', async () => {
+  const reason = async (client, extra) => (await writer(client, extra).writeRole({ text: 'hi', category: '' })).reason;
+  assert.strictEqual(await reason(null), 'no-client');
+  assert.strictEqual(await reason(fakeClient({ flagged: true, outputs: [{}] })), 'flagged');
+  assert.strictEqual(await reason(fakeClient({ outputs: [{ role: 'Nope', logline: 'x' }] })), 'invalid');
+  assert.strictEqual(await reason(fakeClient({ outputs: ['not json'] })), 'invalid');
+  assert.strictEqual(await reason(fakeClient({ genFail: true, outputs: [{}] })), 'error');
+  assert.strictEqual(await reason(fakeClient({ delayMs: 400, outputs: [{ role: 'The Slow Poke', logline: 'Late.' }] }), { timeoutMs: 40 }), 'timeout');
+  let n = 0;
+  const c = fakeClient({ outputs: [{ role: 'The Okay Person', logline: 'Seems fine.' }] });
+  c.moderations.create = async () => ({ results: [{ flagged: n++ === 1 }] });
+  assert.strictEqual(await reason(c), 'output-flagged');
+  const ok = await writer(fakeClient({ outputs: [{ role: 'The Snack Critic', logline: 'Fine.' }] })).writeRole({ text: 'hi', category: '' });
+  assert.strictEqual(ok.reason, undefined);
+});
