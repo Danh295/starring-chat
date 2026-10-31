@@ -4,6 +4,7 @@ const { loadConfig, validateConfig } = require('./config');
 const { createApp } = require('./app');
 const { createLogger } = require('./logger');
 const { createChatSource } = require('./chat');
+const { createHub } = require('./hub');
 const { createTokenStore, createTwitchAuth } = require('./auth');
 
 const config = loadConfig();
@@ -13,9 +14,11 @@ validateConfig(config).forEach((w) => log.warn(w));
 const auth = config.hasTwitchCreds
   ? createTwitchAuth({ config, store: createTokenStore(config.dataDir) })
   : null;
-const app = createApp({ config, auth, log });
+const hubRef = {};
+const app = createApp({ config, auth, log, hub: { broadcast: (...a) => hubRef.hub.broadcast(...a) } });
 const server = app.listen(config.port, () =>
   log.info(`Starring: Chat listening on http://localhost:${config.port}`));
+hubRef.hub = createHub({ server, log });
 server.on('error', (err) => {
   log.error(`Cannot start server on port ${config.port}:`, err.message);
   process.exit(1);
@@ -34,6 +37,7 @@ if (chat) {
 function shutdown() {
   log.info('Shutting down');
   if (chat) chat.stop();
+  hubRef.hub.close();
   server.closeAllConnections();
   server.close(() => process.exit(0));
 }

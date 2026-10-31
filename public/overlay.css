@@ -1,0 +1,9 @@
+html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: transparent; font-family: system-ui, sans-serif; color: #fff; }
+#status { position: fixed; left: 24px; top: 24px; padding: 6px 12px; background: rgba(0,0,0,.6); border-radius: 8px; font-size: 18px; transition: opacity .6s; }
+#status.hidden { opacity: 0; }
+#stage { position: fixed; left: 40px; bottom: 40px; }
+.card { width: 520px; min-height: 220px; box-sizing: border-box; padding: 20px 24px; background: rgba(20,20,30,.92); border: 3px solid #f5c542; border-radius: 12px; transform: translateX(-640px); transition: transform .5s ease; }
+.card.in { transform: translateX(0); }
+.card .who { font-size: 26px; opacity: .85; }
+.card .role { font-size: 48px; font-weight: 800; line-height: 1.1; margin: 6px 0; }
+.card .logline { font-size: 24px; opacity: .9; }
