@@ -113,10 +113,12 @@
   // ---- end credits
   var creditsEl = document.getElementById('credits');
   var creditsActive = false;
+  var deferred = []; // cast events that arrived during the credits
   var themeAudio = new Audio('audio/theme.mp3');
   themeAudio.preload = 'auto';
   themeAudio.volume = STING_VOLUME;
   var hasFileTheme = null;
+  var themeMaster = null;
   themeAudio.addEventListener('error', function () { hasFileTheme = false; });
   themeAudio.addEventListener('canplaythrough', function () { hasFileTheme = true; });
 
@@ -134,6 +136,7 @@
       master.gain.setValueAtTime(STING_VOLUME * 0.5, t0 + total - 3);
       master.gain.linearRampToValueAtTime(0.0001, t0 + total);
       master.connect(audioCtx.destination);
+      themeMaster = master;
       for (var i = 0; i * step < total - 0.3; i++) {
         var note = function (midi, when, len, type, vol) {
           var o = audioCtx.createOscillator(); var g = audioCtx.createGain();
@@ -153,8 +156,12 @@
       themeAudio.currentTime = 0;
       var p = themeAudio.play();
       if (p && p.catch) p.catch(function () { /* autoplay blocked: stay silent */ });
-      setTimeout(function () { themeAudio.pause(); }, ms);
     } else synthTheme(ms);
+  }
+
+  function stopTheme() {
+    try { themeAudio.pause(); } catch (_) { /* nothing playing */ }
+    if (themeMaster) { try { themeMaster.disconnect(); } catch (_) { /* already gone */ } themeMaster = null; }
   }
 
   function section(parent, heading, list, small) {
@@ -179,7 +186,6 @@
     while (creditsEl.firstChild) creditsEl.removeChild(creditsEl.firstChild);
     creditsEl.className = m.compact ? 'compact' : '';
     var scroll = el('div', 'scroll');
-    scroll.style.setProperty('--dur', m.scrollMs + 'ms');
     scroll.style.animationDuration = m.scrollMs + 'ms';
     scroll.appendChild(el('div', 'ep', m.title));
     section(scroll, 'STARRING', m.starring, false);
@@ -195,8 +201,11 @@
     playTheme(m.scrollMs);
     setTimeout(function () { creditsEl.classList.remove('on'); }, m.scrollMs + 600);
     setTimeout(function () {
+      stopTheme();
       while (creditsEl.firstChild) creditsEl.removeChild(creditsEl.firstChild);
       creditsActive = false;
+      // cards for viewers cast during the credits show now instead of being lost
+      deferred.splice(0).forEach(function (c) { queue.push(c); });
     }, m.scrollMs + 2200);
   }
 
@@ -220,9 +229,9 @@
       var msg;
       try { msg = JSON.parse(e.data); } catch (_) { return; }
       if (msg.type === 'hello') { attempt = 0; setStatus('Starring: Chat is connected', false, 4000); loadArt(); }
-      else if (msg.type === 'cast') { if (!creditsActive) queue.push(msg); }
+      else if (msg.type === 'cast') { if (creditsActive) { if (deferred.length < 20) deferred.push(msg); } else queue.push(msg); }
       else if (msg.type === 'credits') rollCredits(msg);
-      else if (msg.type === 'uncast') queue.removeWhere(function (c) { return !!msg.login && c.login === msg.login; });
+      else if (msg.type === 'uncast') { deferred = deferred.filter(function (c) { return !(msg.login && c.login === msg.login); }); queue.removeWhere(function (c) { return !!msg.login && c.login === msg.login; }); }
       else if (msg.type === 'episode') queue.reset();
     };
     ws.onclose = function () {

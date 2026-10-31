@@ -106,3 +106,27 @@ test('sampleCast makes a mixed cast of the requested size (capped)', () => {
   assert.strictEqual(sampleCast(9999).length, 80);
   assert.strictEqual(sampleCast('abc').length, 12);
 });
+
+test('roll() never throws: a failing getCast reports an error and frees the slot', async () => {
+  let boom = true; const emitted = [];
+  const roller = createCreditsRoller({
+    getCast: () => { if (boom) throw new Error('boom'); return [member('a', 'cast')]; },
+    getEpisode: () => 1, writeTitle: async () => 't', emit: (c, e) => { emitted.push(e); return 1; }, log: quiet, now: () => 0,
+  });
+  const r = await roller.roll('chana');
+  assert.deepStrictEqual([r.rolled, r.reason], [false, 'error']);
+  boom = false;
+  assert.strictEqual((await roller.roll('chana')).rolled, true);
+});
+
+test('roll() with no overlay connected frees the slot so a mod can retry', async () => {
+  let listeners = 0; const emitted = [];
+  const roller = createCreditsRoller({
+    getCast: () => [member('a', 'cast')], getEpisode: () => 1, writeTitle: async () => 't',
+    emit: (c, e) => { emitted.push(e); return listeners; }, log: quiet, now: () => 0,
+  });
+  const r = await roller.roll('chana');
+  assert.deepStrictEqual([r.rolled, r.reason], [false, 'no-overlay']);
+  listeners = 1;
+  assert.strictEqual((await roller.roll('chana')).rolled, true);
+});

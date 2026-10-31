@@ -80,7 +80,7 @@
   // Everything the credits roll needs to display, from an untrusted event.
   function creditsModel(msg) {
     const m = msg && typeof msg === 'object' ? msg : {};
-    const ms = Number(m.scrollMs);
+    const ms = typeof m.scrollMs === 'number' ? m.scrollMs : NaN;
     return {
       title: text(m.title, 'The One With Everyone', 100),
       starring: entries(m.starring),

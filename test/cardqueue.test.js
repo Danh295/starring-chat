@@ -162,3 +162,8 @@ test('creditsModel caps very long lists', () => {
   const many = Array.from({ length: 500 }, (_, i) => ({ user: 'u' + i, role: 'The X' }));
   assert.strictEqual(creditsModel({ starring: many }).starring.length, 200);
 });
+
+test('creditsModel: null, empty and non-numeric scrollMs fall back to the 45s default', () => {
+  for (const v of [null, '', undefined, 'abc', NaN]) assert.strictEqual(creditsModel({ scrollMs: v }).scrollMs, 45000, String(v));
+  assert.strictEqual(creditsModel({ scrollMs: 30000 }).scrollMs, 30000);
+});

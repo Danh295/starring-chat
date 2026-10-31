@@ -44,7 +44,7 @@ const casting = createCastingEngine({
   roles,
   emit: (channel, event) => hub.broadcast(channel, event),
   getCategory: categoryFor,
-  onCredits: (channel) => { creditsRoller.roll(channel); },
+  onCredits: (channel) => { creditsRoller.roll(channel).catch((err) => log.error('Credits failed:', err.message)); },
   announce: announcer ? (id, text) => announcer.send(id, text) : undefined,
   log,
 });

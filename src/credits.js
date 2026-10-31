@@ -94,18 +94,25 @@ function createCreditsRoller({ getCast, getEpisode, writeTitle, getCategory = as
   return {
     async roll(channel) {
       if ((busyUntil.get(channel) || 0) > now()) return { rolled: false, reason: 'busy' };
-      const cast = getCast(channel);
-      if (!cast.length) return { rolled: false, reason: 'empty' };
-      busyUntil.set(channel, now() + SCROLL_MS + cooldownExtraMs); // claim the slot before awaiting
+      let claimed = false;
       try {
+        const cast = getCast(channel);
+        if (!cast.length) return { rolled: false, reason: 'empty' };
+        busyUntil.set(channel, now() + SCROLL_MS + cooldownExtraMs); // claim the slot before awaiting
+        claimed = true;
         const episode = getEpisode(channel);
         let category = '';
         try { category = await getCategory(channel); } catch { /* optional */ }
         const title = await writeTitle({ episode, category, roles: cast.map((c) => c.role) });
-        emit(channel, { type: 'credits', ...buildCredits({ channel, episode, cast, title }) });
+        const delivered = emit(channel, { type: 'credits', ...buildCredits({ channel, episode, cast, title }) });
+        if (delivered === 0) { // nobody was watching: let a mod try again once the overlay is connected
+          busyUntil.delete(channel);
+          log.warn(`No overlay connected for ${channel}; credits were not shown`);
+          return { rolled: false, reason: 'no-overlay' };
+        }
         return { rolled: true };
       } catch (err) {
-        busyUntil.delete(channel);
+        if (claimed) busyUntil.delete(channel);
         log.error('Credits failed:', err.stack || err.message);
         return { rolled: false, reason: 'error' };
       }
