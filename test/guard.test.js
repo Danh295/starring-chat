@@ -36,3 +36,18 @@ test('with no password configured, tunnel access is always refused', () => {
   requireLocalOrPassword({ controlPassword: '' })(req({ 'cf-connecting-ip': '1.2.3.4', 'x-control-password': '' }, 'x.trycloudflare.com'), r, () => { called = true; });
   assert.strictEqual(r.code, 403); assert.strictEqual(called, false);
 });
+
+test('localhost requests that look cross-site (CSRF) are refused', () => {
+  const mw = requireLocalOrPassword({ controlPassword: 'pw' });
+  for (const h of [{ 'sec-fetch-site': 'cross-site' }, { 'sec-fetch-site': 'same-site' }, { origin: 'https://evil.example' }]) {
+    const r = res(); let called = false;
+    mw(req(h), r, () => { called = true; });
+    assert.strictEqual(r.code, 403, JSON.stringify(h));
+    assert.strictEqual(called, false);
+  }
+  for (const h of [{}, { 'sec-fetch-site': 'same-origin' }, { 'sec-fetch-site': 'none' }, { origin: 'http://localhost:3000' }]) {
+    let called = false;
+    mw(req(h), res(), () => { called = true; });
+    assert.ok(called, JSON.stringify(h));
+  }
+});

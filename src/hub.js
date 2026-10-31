@@ -6,9 +6,12 @@ const isValidChannel = (c) => typeof c === 'string' && CHANNEL_RE.test(c);
 
 // WebSocket hub for overlays. Overlays connect to /ws?channel=<login> and receive
 // only that channel's events. Everything sent here is already public on stream.
-function createHub({ server, log, maxPerChannel = 25, heartbeatMs = 30_000, onConnect = () => {} }) {
+function createHub({ server, log, maxPerChannel = 50, maxPerIp = 5, heartbeatMs = 30_000, onConnect = () => {} }) {
   const wss = new WebSocketServer({ noServer: true });
   const clients = new Map(); // channel -> Set<ws>
+  const reserved = new Map(); // channel -> upgrades in progress (counted against the cap)
+  const bump = (m, k, d) => m.set(k, Math.max(0, (m.get(k) || 0) + d));
+  const ipOf = (req) => String(req.headers['cf-connecting-ip'] || req.socket.remoteAddress || '');
 
   const reject = (socket, status, text) => {
     socket.write(`HTTP/1.1 ${status} ${text}\r\nConnection: close\r\n\r\n`);
@@ -21,8 +24,16 @@ function createHub({ server, log, maxPerChannel = 25, heartbeatMs = 30_000, onCo
     if (url.pathname !== '/ws') return reject(socket, 404, 'Not Found');
     const channel = url.searchParams.get('channel');
     if (!isValidChannel(channel)) return reject(socket, 400, 'Bad Request');
-    if ((clients.get(channel) || new Set()).size >= maxPerChannel) return reject(socket, 429, 'Too Many Requests');
+    const set = clients.get(channel) || new Set();
+    const ip = ipOf(req);
+    const sameIp = [...set].filter((w) => w.ip === ip).length;
+    if (set.size + (reserved.get(channel) || 0) >= maxPerChannel || sameIp >= maxPerIp) {
+      return reject(socket, 429, 'Too Many Requests');
+    }
+    bump(reserved, channel, 1);
     wss.handleUpgrade(req, socket, head, (ws) => {
+      bump(reserved, channel, -1);
+      ws.ip = ip;
       ws.alive = true;
       ws.on('pong', () => { ws.alive = true; });
       ws.on('error', () => {});
@@ -32,7 +43,7 @@ function createHub({ server, log, maxPerChannel = 25, heartbeatMs = 30_000, onCo
       });
       if (!clients.has(channel)) clients.set(channel, new Set());
       clients.get(channel).add(ws);
-      ws.send(JSON.stringify({ type: 'hello', channel }));
+      try { ws.send(JSON.stringify({ type: 'hello', channel })); } catch { /* closed already */ }
       try { onConnect(channel, ws); } catch (err) { log.error('Hub onConnect failed:', err.message); }
     });
   });

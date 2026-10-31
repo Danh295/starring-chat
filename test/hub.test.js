@@ -91,3 +91,15 @@ test('unresponsive clients are dropped by the heartbeat', async (t) => {
   a.ws._receiver.removeAllListeners('ping');
   await until(() => hub.clientCount('chana') === 0, 1500);
 });
+
+test('per-IP cap leaves room for other viewers of the channel', async (t) => {
+  const { open } = await setup(t, { maxPerIp: 2, maxPerChannel: 10 });
+  await open('chana'); await open('chana');
+  await assert.rejects(() => open('chana')); // third from the same address
+});
+
+test('simultaneous upgrades cannot slip past the cap', async (t) => {
+  const { open } = await setup(t, { maxPerChannel: 3, maxPerIp: 100 });
+  const results = await Promise.allSettled(Array.from({ length: 10 }, () => open('chana')));
+  assert.strictEqual(results.filter((r) => r.status === 'fulfilled').length, 3);
+});

@@ -14,7 +14,15 @@ function checkPassword(expected, given) {
 // control password in the x-control-password header (never in a URL).
 function requireLocalOrPassword(config) {
   return (req, res, next) => {
-    if (isLocalRequest(req)) return next();
+    if (isLocalRequest(req)) {
+      // Block cross-site pages from poking the local server (CSRF) while allowing
+      // direct visits, curl, and same-origin pages.
+      const site = req.headers['sec-fetch-site'];
+      if (site && site !== 'same-origin' && site !== 'none') return res.status(403).send('Forbidden');
+      const origin = req.headers.origin;
+      if (origin && !/^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/i.test(origin)) return res.status(403).send('Forbidden');
+      return next();
+    }
     if (checkPassword(config.controlPassword, req.headers['x-control-password'])) return next();
     return res.status(403).send('Forbidden');
   };
