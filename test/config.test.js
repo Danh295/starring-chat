@@ -71,3 +71,9 @@ test('validateConfig warns about missing live-mode settings, nothing in demo', (
   assert.deepStrictEqual(
     validateConfig(loadConfig({ CHANNELS: 'a', BOT_USERNAME: 'b', TWITCH_CLIENT_ID: 'x', TWITCH_CLIENT_SECRET: 'y' })), []);
 });
+
+test('MAX_CAST sets the per-episode cap, default 40', () => {
+  assert.strictEqual(loadConfig({}).maxCastPerEpisode, 40);
+  assert.strictEqual(loadConfig({ MAX_CAST: '12' }).maxCastPerEpisode, 12);
+  assert.strictEqual(loadConfig({ MAX_CAST: '-3' }).maxCastPerEpisode, 40);
+});
