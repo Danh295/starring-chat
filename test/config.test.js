@@ -38,3 +38,36 @@ test('hasTwitchCreds and hasOpenAI reflect env', () => {
   assert.strictEqual(all.hasTwitchCreds, true);
   assert.strictEqual(all.hasOpenAI, true);
 });
+
+test('env values are trimmed and case-insensitive', () => {
+  assert.strictEqual(loadConfig({ CHAT_SOURCE: ' IRC ' }).chatSource, 'irc');
+  assert.strictEqual(loadConfig({ DEMO_CHAT: 'True' }).demo, true);
+  assert.strictEqual(loadConfig({ ANNOUNCE_IN_CHAT: ' TRUE' }).announceInChat, true);
+});
+
+test('PORT must be a whole number in 1-65535', () => {
+  assert.strictEqual(loadConfig({ PORT: '8080abc' }).port, 3000);
+  assert.strictEqual(loadConfig({ PORT: '70000' }).port, 3000);
+  assert.strictEqual(loadConfig({ PORT: '65535' }).port, 65535);
+});
+
+test('DEMO_SPEED must be finite and positive', () => {
+  assert.strictEqual(loadConfig({ DEMO_SPEED: 'Infinity' }).demoSpeed, 1);
+  assert.strictEqual(loadConfig({ DEMO_SPEED: '4' }).demoSpeed, 4);
+});
+
+test('dataDir resolves to an absolute path independent of cwd', () => {
+  const path = require('node:path');
+  assert.ok(path.isAbsolute(loadConfig({}).dataDir));
+  assert.strictEqual(loadConfig({ DATA_DIR: '/tmp/x' }).dataDir, '/tmp/x');
+});
+
+test('validateConfig warns about missing live-mode settings, nothing in demo', () => {
+  const { validateConfig } = require('../src/config');
+  assert.deepStrictEqual(validateConfig(loadConfig({ DEMO_CHAT: 'true' })), []);
+  const w = validateConfig(loadConfig({}));
+  assert.ok(w.some((m) => /CHANNELS/.test(m)));
+  assert.ok(w.some((m) => /TWITCH_CLIENT_ID/.test(m)));
+  assert.deepStrictEqual(
+    validateConfig(loadConfig({ CHANNELS: 'a', BOT_USERNAME: 'b', TWITCH_CLIENT_ID: 'x', TWITCH_CLIENT_SECRET: 'y' })), []);
+});

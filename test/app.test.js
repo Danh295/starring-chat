@@ -5,9 +5,12 @@ const { loadConfig } = require('../src/config');
 
 async function withServer(fn) {
   const app = createApp({ config: loadConfig({}) });
-  const server = await new Promise((r) => { const s = app.listen(0, '127.0.0.1', () => r(s)); });
+  const server = await new Promise((resolve, reject) => {
+    const s = app.listen(0, '127.0.0.1', () => resolve(s));
+    s.on('error', reject);
+  });
   try { await fn(`http://127.0.0.1:${server.address().port}`); }
-  finally { await new Promise((r) => server.close(r)); }
+  finally { server.closeAllConnections(); await new Promise((r) => server.close(r)); }
 }
 
 test('GET /health returns ok', async () => {

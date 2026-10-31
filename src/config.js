@@ -1,32 +1,51 @@
 'use strict';
+const path = require('node:path');
+
+const flag = (v) => String(v || '').trim().toLowerCase() === 'true';
+
+function parsePort(v) {
+  const s = String(v || '').trim();
+  if (!/^\d+$/.test(s)) return 3000;
+  const n = Number(s);
+  return n >= 1 && n <= 65535 ? n : 3000;
+}
+
 // Reads environment variables into one plain config object.
 // Takes `env` as an argument so tests never touch process.env.
-
 function loadConfig(env = process.env) {
-  const port = Number.parseInt(env.PORT, 10);
   const channels = (env.CHANNELS || '')
     .split(',')
     .map((c) => c.trim().replace(/^#/, '').toLowerCase())
     .filter(Boolean);
-  const chatSource = env.CHAT_SOURCE === 'irc' ? 'irc' : 'eventsub';
+  const speed = Number(env.DEMO_SPEED);
 
   return {
-    port: Number.isInteger(port) && port > 0 ? port : 3000,
-    demo: env.DEMO_CHAT === 'true',
+    port: parsePort(env.PORT),
+    demo: flag(env.DEMO_CHAT),
     channels,
-    chatSource,
-    botUsername: (env.BOT_USERNAME || '').toLowerCase(),
-    twitchClientId: env.TWITCH_CLIENT_ID || '',
-    twitchClientSecret: env.TWITCH_CLIENT_SECRET || '',
-    openaiApiKey: env.OPENAI_API_KEY || '',
-    openaiModel: env.OPENAI_MODEL || 'gpt-5-mini',
+    chatSource: String(env.CHAT_SOURCE || '').trim().toLowerCase() === 'irc' ? 'irc' : 'eventsub',
+    botUsername: (env.BOT_USERNAME || '').trim().toLowerCase(),
+    twitchClientId: (env.TWITCH_CLIENT_ID || '').trim(),
+    twitchClientSecret: (env.TWITCH_CLIENT_SECRET || '').trim(),
+    openaiApiKey: (env.OPENAI_API_KEY || '').trim(),
+    openaiModel: (env.OPENAI_MODEL || 'gpt-5-mini').trim(),
     controlPassword: env.CONTROL_PASSWORD || '',
-    announceInChat: env.ANNOUNCE_IN_CHAT === 'true',
-    demoSpeed: Number(env.DEMO_SPEED) > 0 ? Number(env.DEMO_SPEED) : 1,
-    dataDir: env.DATA_DIR || 'data',
-    hasTwitchCreds: Boolean(env.TWITCH_CLIENT_ID && env.TWITCH_CLIENT_SECRET),
-    hasOpenAI: Boolean(env.OPENAI_API_KEY),
+    announceInChat: flag(env.ANNOUNCE_IN_CHAT),
+    demoSpeed: Number.isFinite(speed) && speed > 0 ? speed : 1,
+    dataDir: env.DATA_DIR ? path.resolve(env.DATA_DIR) : path.resolve(__dirname, '..', 'data'),
+    hasTwitchCreds: Boolean((env.TWITCH_CLIENT_ID || '').trim() && (env.TWITCH_CLIENT_SECRET || '').trim()),
+    hasOpenAI: Boolean((env.OPENAI_API_KEY || '').trim()),
   };
 }
 
-module.exports = { loadConfig };
+// Human-readable warnings for a live (non-demo) run. Empty array means fine.
+function validateConfig(config) {
+  if (config.demo) return [];
+  const w = [];
+  if (!config.channels.length) w.push('CHANNELS is empty: no chat will be read.');
+  if (!config.botUsername && config.chatSource === 'eventsub') w.push('BOT_USERNAME is not set.');
+  if (!config.hasTwitchCreds && config.chatSource === 'eventsub') w.push('TWITCH_CLIENT_ID / TWITCH_CLIENT_SECRET are not set.');
+  return w;
+}
+
+module.exports = { loadConfig, validateConfig };
