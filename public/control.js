@@ -1,7 +1,7 @@
 (function () {
   var $ = function (id) { return document.getElementById(id); };
   var params = new URLSearchParams(location.search);
-  var channel = (params.get('channel') || '').toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 25);
+  var channel = SetupCore.normalizeChannel(params.get('channel') || '');
   var password = '';
   var poll = null;
 
@@ -16,6 +16,7 @@
     }).then(function (res) {
       return res.json().catch(function () { return {}; }).then(function (data) {
         if (res.status === 401) { lock(); throw new Error('Wrong password.'); }
+        if (res.status === 429 || res.status === 503) { lock(); throw new Error(data.error || 'Control is unavailable right now.'); }
         if (!res.ok) throw new Error(data.error || ('Request failed (' + res.status + ')'));
         return data;
       });
@@ -23,7 +24,7 @@
   }
 
   function lock() {
-    clearInterval(poll); poll = null; password = '';
+    clearInterval(poll); poll = null; password = ''; seq += 1;
     $('panel').classList.add('hidden');
     $('login').classList.remove('hidden');
   }
@@ -44,15 +45,23 @@
       tag.textContent = m.kind === 'guest' ? ' GUEST STAR' : m.kind === 'lurk' ? ' EXTRA' : (m.regular ? ' REGULAR' : '');
       left.appendChild(tag);
       var btn = document.createElement('button'); btn.type = 'button'; btn.className = 'secondary'; btn.textContent = 'Uncast';
-      btn.addEventListener('click', function () { act('uncast', { login: m.login }, 'Removed ' + m.name + '.'); });
+      btn.addEventListener('click', function () { act('uncast', { login: m.login }, 'Removed ' + m.name + ' for this episode.'); });
       li.appendChild(left); li.appendChild(btn);
       list.appendChild(li);
     });
     $('empty').classList.toggle('hidden', (state.cast || []).length > 0);
   }
 
+  var seq = 0;          // ignore responses that arrive out of order
+  var refreshing = false;
   function refresh() {
-    return api('GET', 'cast?channel=' + encodeURIComponent(channel)).then(render).catch(function (e) { say(e.message); });
+    if (refreshing || !password) return Promise.resolve();
+    refreshing = true;
+    var mine = ++seq;
+    return api('GET', 'cast?channel=' + encodeURIComponent(channel))
+      .then(function (state) { if (mine === seq && password) render(state); })
+      .catch(function (e) { say(e.message); })
+      .then(function () { refreshing = false; });
   }
 
   function act(path, extra, okText) {
@@ -68,8 +77,8 @@
   }
 
   function connect() {
-    channel = $('chan').value.trim().toLowerCase().replace(/^#/, '');
-    if (!/^[a-z0-9_]{1,25}$/.test(channel)) { say('Enter a valid channel name.'); return; }
+    channel = SetupCore.normalizeChannel($('chan').value);
+    if (!channel) { say('Enter a valid channel name.'); return; }
     password = $('pw').value;
     $('pw').value = '';
     if (!password) { say('Enter the control password.'); return; }

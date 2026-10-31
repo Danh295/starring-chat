@@ -4,13 +4,20 @@ const { checkPassword } = require('./guard');
 const { isValidChannel } = require('./hub');
 
 const LOGIN_RE = /^[a-z0-9_]{1,25}$/;
+const LOOPBACK_RE = /^(127\.|::1$|::ffff:127\.)/;
+
+// Who is calling? cf-connecting-ip is only believed when the connection itself comes from this
+// machine (the Cloudflare tunnel); a direct client cannot spoof its way to a fresh limiter bucket.
+function clientKey(req) {
+  const addr = String((req.socket && req.socket.remoteAddress) || 'unknown');
+  const cf = req.headers['cf-connecting-ip'];
+  return LOOPBACK_RE.test(addr) && cf ? String(cf) : addr;
+}
 
 // Control API for the streamer's control page. Every request needs the password in the
 // x-control-password header (never a URL), including from localhost.
 function createControlRouter({ config, casting, credits, hub, limiter, log }) {
   const router = express.Router();
-  const clientKey = (req) => String(req.headers['cf-connecting-ip'] || (req.socket && req.socket.remoteAddress) || 'unknown');
-
   // 1. refuse requests that come from another site's page
   router.use((req, res, next) => {
     const site = req.headers['sec-fetch-site'];
@@ -19,7 +26,8 @@ function createControlRouter({ config, casting, credits, hub, limiter, log }) {
     if (origin) {
       let host = '';
       try { host = new URL(origin).host; } catch { /* treated as mismatch */ }
-      if (host !== req.headers.host) return res.status(403).json({ error: 'cross-site request refused' });
+      const forwarded = LOOPBACK_RE.test(String((req.socket && req.socket.remoteAddress) || '')) ? req.headers['x-forwarded-host'] : '';
+      if (host !== req.headers.host && host !== forwarded) return res.status(403).json({ error: 'cross-site request refused' });
     }
     next();
   });
@@ -38,6 +46,7 @@ function createControlRouter({ config, casting, credits, hub, limiter, log }) {
 
   router.use(express.json({ limit: '4kb' }));
 
+  const served = (c) => config.channels.includes(c) || (config.demo && c === config.demoChannel);
   const channelOf = (req) => {
     const raw = (req.method === 'GET' ? req.query.channel : req.body && req.body.channel);
     const c = String(raw || '').toLowerCase();
@@ -46,6 +55,7 @@ function createControlRouter({ config, casting, credits, hub, limiter, log }) {
   const withChannel = (handler) => async (req, res) => {
     const channel = channelOf(req);
     if (!channel) return res.status(400).json({ error: 'bad channel' });
+    if (!served(channel)) return res.status(404).json({ error: 'This server is not running Starring: Chat for that channel.' });
     try { await handler(channel, req, res); } catch (err) {
       log.error('Control action failed:', err.stack || err.message);
       res.status(500).json({ error: 'action failed' });
@@ -79,4 +89,4 @@ function createControlRouter({ config, casting, credits, hub, limiter, log }) {
   return router;
 }
 
-module.exports = { createControlRouter };
+module.exports = { createControlRouter, clientKey };

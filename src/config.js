@@ -22,6 +22,7 @@ function loadConfig(env = process.env) {
   return {
     port: parsePort(env.PORT),
     demo: flag(env.DEMO_CHAT),
+    demoChannel: (/^[a-z0-9_]{1,25}$/i.test((env.DEMO_CHANNEL || '').trim()) ? env.DEMO_CHANNEL.trim().toLowerCase() : 'demo'),
     channels,
     chatSource: String(env.CHAT_SOURCE || '').trim().toLowerCase() === 'irc' ? 'irc' : 'eventsub',
     botUsername: (env.BOT_USERNAME || '').trim().toLowerCase(),

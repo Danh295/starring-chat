@@ -29,8 +29,14 @@ function requireLocalOrPassword(config) {
 }
 
 // Tracks failed password attempts per client so the control password cannot be guessed.
-function createAuthLimiter({ max = 10, windowMs = 60_000, now = Date.now } = {}) {
+function createAuthLimiter({ max = 10, windowMs = 60_000, now = Date.now, maxKeys = 1000 } = {}) {
   const failures = new Map(); // key -> timestamps of recent failures
+  const prune = () => {
+    for (const [k, list] of failures) {
+      const live = list.filter((t) => now() - t < windowMs);
+      if (live.length) failures.set(k, live); else failures.delete(k);
+    }
+  };
   const recent = (key) => {
     const list = (failures.get(key) || []).filter((t) => now() - t < windowMs);
     if (list.length) failures.set(key, list); else failures.delete(key);
@@ -42,7 +48,9 @@ function createAuthLimiter({ max = 10, windowMs = 60_000, now = Date.now } = {})
       const list = recent(key);
       list.push(now());
       failures.set(key, list);
+      if (failures.size > maxKeys) prune(); // keeps memory bounded when keys never repeat
     },
+    size: () => failures.size,
   };
 }
 

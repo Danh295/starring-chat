@@ -23,7 +23,7 @@ function fakes() {
 
 async function boot(t, env = { CONTROL_PASSWORD: 'pw' }, extra = {}) {
   const f = fakes();
-  const app = createApp({ config: loadConfig(env), log: quiet, hub: f.hub, casting: f.casting, credits: f.credits, authLimiter: extra.authLimiter });
+  const app = createApp({ config: loadConfig({ CHANNELS: 'chana', ...env }), log: quiet, hub: f.hub, casting: f.casting, credits: f.credits, authLimiter: extra.authLimiter });
   const server = await new Promise((res, rej) => { const s = app.listen(0, '127.0.0.1', () => res(s)); s.on('error', rej); });
   t.after(() => { server.closeAllConnections(); server.close(); });
   const base = `http://127.0.0.1:${server.address().port}`;
@@ -125,4 +125,44 @@ test('limiter: failures expire after the window and successes do not count', () 
   t = 1500;
   assert.strictEqual(l.blocked('ip'), false);
   assert.strictEqual(l.blocked('other'), false);
+});
+
+const { clientKey } = require('../src/control');
+
+test('clientKey trusts cf-connecting-ip only when the connection is from loopback (the tunnel)', () => {
+  const req = (addr, headers = {}) => ({ headers, socket: { remoteAddress: addr } });
+  assert.strictEqual(clientKey(req('127.0.0.1', { 'cf-connecting-ip': '9.9.9.9' })), '9.9.9.9');
+  assert.strictEqual(clientKey(req('::ffff:127.0.0.1', { 'cf-connecting-ip': '9.9.9.9' })), '9.9.9.9');
+  assert.strictEqual(clientKey(req('203.0.113.5', { 'cf-connecting-ip': '9.9.9.9' })), '203.0.113.5', 'spoofed header from a direct client is ignored');
+  assert.strictEqual(clientKey(req('127.0.0.1')), '127.0.0.1');
+});
+
+test('limiter memory stays bounded when many different keys fail once', () => {
+  let t = 0;
+  const l = createAuthLimiter({ max: 5, windowMs: 1000, now: () => t, maxKeys: 50 });
+  for (let i = 0; i < 500; i++) { l.fail('k' + i); t += 1; }
+  assert.ok(l.size() <= 50 + 1000 / 1, 'old entries are pruned');
+  t += 5000;
+  l.fail('late');
+  assert.ok(l.size() <= 2, 'expired entries were dropped');
+});
+
+test('control only works for channels this server actually serves', async (t) => {
+  const { call } = await boot(t, { CONTROL_PASSWORD: 'pw', CHANNELS: 'chana' });
+  assert.strictEqual((await call('GET', '/api/control/cast?channel=chana', { password: 'pw' })).status, 200);
+  assert.strictEqual((await call('GET', '/api/control/cast?channel=stranger', { password: 'pw' })).status, 404);
+  assert.strictEqual((await call('POST', '/api/control/pause', { password: 'pw', body: { channel: 'stranger' } })).status, 404);
+});
+
+test('demo mode serves the demo channel', async (t) => {
+  const { call } = await boot(t, { CONTROL_PASSWORD: 'pw', DEMO_CHAT: 'true' });
+  assert.strictEqual((await call('GET', '/api/control/cast?channel=demo', { password: 'pw' })).status, 200);
+});
+
+test('a proxied same-origin POST (Origin matches X-Forwarded-Host) is allowed', async (t) => {
+  const { call } = await boot(t, { CONTROL_PASSWORD: 'pw', CHANNELS: 'chana' });
+  const ok = await call('POST', '/api/control/pause', { password: 'pw', body: { channel: 'chana' }, headers: { origin: 'https://abc.trycloudflare.com', 'x-forwarded-host': 'abc.trycloudflare.com' } });
+  assert.strictEqual(ok.status, 200);
+  const bad = await call('POST', '/api/control/pause', { password: 'pw', body: { channel: 'chana' }, headers: { origin: 'https://evil.example', 'x-forwarded-host': 'abc.trycloudflare.com' } });
+  assert.strictEqual(bad.status, 403);
 });
