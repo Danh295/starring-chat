@@ -25,11 +25,13 @@ Requires Node 20 or newer.
 git clone https://github.com/Danh295/starring-chat.git
 cd starring-chat
 npm install
-npm test          # 234 tests
+npm test          # offline, a few seconds
 npm run demo      # scripted show: 6 chatters, a lurker, a raid, then !credits (~3 minutes)
 ```
 
-Then open **http://localhost:3000/overlay.html?channel=demo&preview=1**. The scripted show starts when the overlay opens (reload the page to replay it). `preview=1` adds a dark stand-in "game" backdrop so you can see the overlay in a normal browser tab; in OBS leave it off for a transparent background.
+Then open **http://localhost:3000/overlay.html?channel=demo&preview=1** (`demo` is the default demo channel; change it with `DEMO_CHANNEL`). The scripted show starts when the overlay opens. To replay it, wait until it has finished (about a minute after the credits event) and reload the page; reloading during a run does not restart it. `preview=1` adds a dark stand-in "game" backdrop so you can see the overlay in a normal browser tab; in OBS leave it off for a transparent background.
+
+Note: if `DEMO_CHAT=true` is left in your `.env`, plain `npm start` also runs the demo instead of reading Twitch chat.
 
 Without an OpenAI key, roles come from an editable fallback list (`data/fallback-roles.json`). With a key, the AI writes them.
 
@@ -142,10 +144,10 @@ The default card, stamp, sting and theme are drawn with CSS/SVG and synthesized 
 ## Development
 
 ```bash
-npm test         # node:test, offline, ~10 s
+npm test         # node:test, offline
 ```
 
-Every module was written test-first (red, then green) and every pull request went through a code review before merging; the review findings that mattered were fixed in follow-up commits on the same PR (see the merged PRs). The suite includes a fake EventSub server, a fake IRC server, and an end-to-end test that boots the whole app in demo mode and asserts that a client receives cards and then credits.
+Modules were written test-first (red, then green), and each ticket was a pull request that went through a code review before merging, with the findings that mattered fixed on the same PR. See the [merged pull requests](https://github.com/Danh295/starring-chat/pulls?q=is%3Apr+is%3Amerged). The suite includes a fake EventSub server, a fake IRC server, and an end-to-end test that boots the whole app in demo mode and asserts that a client receives cards and then credits.
 
 `AGENTS.md` records the project rules for coding agents.
 
