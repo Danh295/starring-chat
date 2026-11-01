@@ -4,34 +4,39 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Starring: Chat setup</title>
+<meta name="description" content="Set up Starring: Chat in about two minutes. Add the overlay to OBS and your chat becomes the cast of a sitcom.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@500&display=swap">
-<link rel="stylesheet" href="pages.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Mona+Sans:wdth,wght@75..125,200..900&display=swap">
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="base.css">
 <link rel="stylesheet" href="card.css">
+<link rel="stylesheet" href="pages.css">
 </head>
 <body>
-<header class="bar">
-  <a class="brand" href="setup.html"><span class="mark">SC</span>Starring: Chat</a>
-  <nav class="sp" aria-label="Pages"><a href="setup.html" aria-current="page">Setup</a><a href="control.html" id="toControl">Control room</a></nav>
-</header>
+<header class="topbar"><div class="in">
+  <a class="brand" href="setup.html">Starring: Chat</a>
+  <nav aria-label="Pages"><a href="setup.html" aria-current="page">Setup</a><a href="control.html" id="toControl">Control room</a></nav>
+</div></header>
 
 <main class="wrap">
+  <p class="sr" id="live" role="status" aria-live="polite"></p>
   <h1>Turn your chat into a cast</h1>
-  <p class="lead">Every new chatter gets a role on stream, like a character in a sitcom. Setup takes about two minutes and there is nothing to download.</p>
+  <p class="intro">Every new chatter gets a role on stream, like a character in a sitcom. Setup takes about two minutes and there is nothing to download.</p>
 
-  <div class="stage" id="stage" aria-live="polite"></div>
+  <div class="stage" id="stage"></div>
   <div class="legend" id="legend" role="group" aria-label="Card types">
-    <button type="button" data-tier="cast" aria-pressed="true"><div><b>First message</b><span>Cyan card for a chatter's first message</span></div></button>
-    <button type="button" data-tier="regular" aria-pressed="false"><div><b>Series regular</b><span>Violet card once they have come back 3 times</span></div></button>
-    <button type="button" data-tier="guest" aria-pressed="false"><div><b>Raid guest</b><span>Gold card for someone who raids you</span></div></button>
-    <button type="button" data-tier="lurk" aria-pressed="false"><div><b>Lurker</b><span>Grey card when they type !lurk</span></div></button>
+    <button type="button" class="secondary" data-tier="cast" aria-pressed="true">Starring</button>
+    <button type="button" class="secondary" data-tier="regular" aria-pressed="false">Series regular</button>
+    <button type="button" class="secondary" data-tier="guest" aria-pressed="false">Special guest star</button>
+    <button type="button" class="secondary" data-tier="lurk" aria-pressed="false">Background extra</button>
   </div>
+  <p class="stage-label" id="stageCaption"></p>
 
   <ol class="steps">
     <li class="step" id="s1" data-state="active">
       <span class="n">1</span>
-      <h2>Your channel</h2>
+      <h2>Your channel<span class="sr state-note"></span></h2>
       <p>Type the name of your Twitch channel.</p>
       <div class="body">
         <label for="channel-input">Twitch channel name</label>
@@ -42,12 +47,13 @@
 
     <li class="step" id="s2" data-state="locked" inert>
       <span class="n">2</span>
-      <h2>Add it to OBS</h2>
+      <h2>Add it to OBS<span class="sr state-note"></span></h2>
       <p>Copy your overlay link, then add it as a Browser source.</p>
+      <p class="lock-note">Do step 1 first: type your channel name.</p>
       <div class="body">
-        <div id="url" class="code" tabindex="0" aria-label="Your overlay URL"></div>
+        <div id="url" class="code" tabindex="0" role="textbox" aria-readonly="true" aria-label="Your overlay URL"></div>
         <button id="copy" type="button">Copy link</button>
-        <div class="settings" aria-label="Browser source settings">
+        <div class="settings" role="group" aria-label="Browser source settings">
           <span class="s">Width <b>1920</b></span><span class="s">Height <b>1080</b></span><span class="s">Tick <b>Control audio via OBS</b></span>
         </div>
         <p class="hint">In OBS, under Sources select <b>+</b>, choose <b>Browser</b>, paste the link, set those three things, and select OK. Streamlabs works the same way.</p>
@@ -56,8 +62,9 @@
 
     <li class="step" id="s3" data-state="locked" inert>
       <span class="n">3</span>
-      <h2>See it work</h2>
+      <h2>See it work<span class="sr state-note"></span></h2>
       <p>Send yourself a test card to check the overlay is showing.</p>
+      <p class="lock-note">Do step 1 first: type your channel name.</p>
       <div class="body">
         <button id="test" type="button">Send a test card</button>
         <div id="test-result" class="result" role="status"></div>
@@ -66,10 +73,11 @@
 
     <li class="step" id="s4" data-state="locked" inert>
       <span class="n">4</span>
-      <h2>Tell your chat</h2>
+      <h2>Tell your chat<span class="sr state-note"></span></h2>
       <p>Paste this into chat once so viewers know what the cards are. It has no links, so link filters leave it alone.</p>
+      <p class="lock-note">Do step 1 first: type your channel name.</p>
       <div class="body">
-        <div id="notice" class="code prose" tabindex="0" aria-label="Chat message to paste"></div>
+        <div id="notice" class="code" tabindex="0" role="textbox" aria-readonly="true" aria-label="Chat message to paste"></div>
         <button id="copyNotice" type="button" class="secondary">Copy message</button>
       </div>
     </li>
@@ -83,7 +91,7 @@
         <dt><code>!nocast</code></dt><dd>Anyone: opt out. Their card is removed and they are never cast again.</dd>
         <dt><code>!credits</code></dt><dd>You or a mod: roll the end credits (about 45 seconds).</dd>
         <dt><code>!newepisode</code></dt><dd>You or a mod: start a fresh episode with a clean cast.</dd>
-        <dt><code>!uncast @name</code></dt><dd>You or a mod: remove someone from tonight's cast.</dd>
+        <dt><code>!uncast @name</code></dt><dd>You or a mod: remove someone from tonight’s cast.</dd>
       </dl>
     </div>
   </details>

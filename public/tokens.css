@@ -1,0 +1,27 @@
+:root {
+  color-scheme: dark;
+  --space-3xs: 2px; --space-2xs: 4px; --space-xs: 8px; --space-sm: 12px; --space-md: 16px; --space-lg: 24px; --space-xl: 40px; --space-2xl: 64px; --space-3xl: 96px; --space-4xl: 144px;
+  --text-xs: 0.75rem; --text-sm: 0.875rem; --text-md: 1rem; --text-lg: 1.2rem; --text-xl: 1.44rem; --text-2xl: 1.728rem; --text-3xl: 2.074rem;
+  --text-display-s: 1.44rem; --text-display: 1.728rem; --text-section: 1.2rem; --text-title: 1rem; --text-lead: 1rem;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1); --ease-in: cubic-bezier(0.7, 0, 0.84, 0); --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-micro: 120ms; --dur-short: 220ms; --dur-long: 420ms;
+  --color-error: oklch(72% 0.15 27); --color-success: oklch(76% 0.13 150);
+  --container: 1440px; --gutter: 64px; --gap-columns: 32px; --section-gap-s: 120px; --section-gap: 144px; --section-gap-l: 176px;
+  --z-base: 1; --z-raised: 10; --z-dropdown: 100; --z-sticky: 200; --z-sticky-nav: 300; --z-modal: 400; --z-toast: 500; --z-tooltip: 600;
+  --color-paper: oklch(14% 0.048 264); --color-paper-2: oklch(18.5% 0.052 264); --color-paper-3: oklch(23% 0.055 264);
+  --color-ink: oklch(95% 0.016 250); --color-ink-2: oklch(88% 0.05 245); --color-muted: oklch(73% 0.04 256);
+  --color-rule: oklch(29% 0.058 264); --color-rule-2: oklch(40% 0.06 262);
+  /* Twitch violet is the one signal (the project's own brand, which outranks the theme's azure) */
+  --color-accent: oklch(56% 0.24 293); --color-accent-2: oklch(48% 0.22 293); --color-accent-ink: oklch(98% 0.01 293); --color-accent-text: oklch(80% 0.12 293); --color-focus: oklch(82% 0.13 293);
+  --font-display: "Mona Sans", ui-sans-serif, system-ui, sans-serif; --font-body: var(--font-display); --font-outlier: var(--font-display);
+  --radius-card: 0; --radius-pill: 0; --rule-hair: 1px;
+  --shadow-card: 0 24px 48px -24px oklch(6% 0.04 264 / 0.7);
+  --tracking-display: -0.015em; --display-weight: 300; --display-stretch: 125%;
+  /* the stream card: rarity tiers tell a viewer who just showed up without reading */
+  --tier-cast: oklch(82% 0.12 220); --tier-regular: oklch(66% 0.23 293); --tier-guest: oklch(86% 0.15 88); --tier-lurk: oklch(68% 0.03 264);
+  --font-card: "Chakra Petch", "Arial Narrow", ui-sans-serif, sans-serif;
+  --card-cut: 24px; --card-width: 560px;
+  --color-void: oklch(10% 0.03 264);
+  --shadow-toast: 0 12px 32px -12px oklch(6% 0.04 264 / 0.8);
+  --text-body-s: 0.9375rem; --text-4xl: 2.488rem;
+}

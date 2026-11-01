@@ -47,3 +47,29 @@ test('countdownLabel rounds up to whole seconds and never goes negative', () => 
   assert.strictEqual(countdownLabel(0), '0s');
   assert.strictEqual(countdownLabel(-500), '0s');
 });
+
+const { tierLabel, withParam, flattenCast } = require('../public/control-core');
+
+test('tierLabel gives the singular name shown in the Type column', () => {
+  assert.strictEqual(tierLabel('regular'), 'Series regular');
+  assert.strictEqual(tierLabel('cast'), 'Starring');
+  assert.strictEqual(tierLabel('guest'), 'Special guest star');
+  assert.strictEqual(tierLabel('lurk'), 'Background extra');
+  assert.strictEqual(tierLabel('nonsense'), 'Starring');
+});
+
+test('withParam keeps the rest of the query and removes empty values', () => {
+  assert.strictEqual(withParam('?channel=demo', 'q', 'owl'), '?channel=demo&q=owl');
+  assert.strictEqual(withParam('?channel=demo&q=owl', 'q', 'cat'), '?channel=demo&q=cat');
+  assert.strictEqual(withParam('?channel=demo&q=owl', 'q', ''), '?channel=demo');
+  assert.strictEqual(withParam('', 'q', 'a b'), '?q=a+b');
+  assert.strictEqual(withParam('?q=x', 'q', ''), '');
+});
+
+test('flattenCast orders rows by tier and tags each with its tier', () => {
+  const rows = flattenCast([
+    { login: 'a', kind: 'lurk' }, { login: 'b', kind: 'cast', regular: true }, { login: 'c', kind: 'cast' },
+  ]);
+  assert.deepStrictEqual(rows.map((r) => [r.login, r.tier]), [['b', 'regular'], ['c', 'cast'], ['a', 'lurk']]);
+  assert.deepStrictEqual(flattenCast(null), []);
+});

@@ -1,66 +1,50 @@
-/* Starring: Chat overlay. Card colour = rarity, like a game party roster:
-   cyan = first-time chatter, violet = Series Regular, gold = raid guest, grey = lurker. */
-:root {
-  --void: #0e0e10; --ink: #12121a; --line: #34344a;
-  --text: #efeff5; --dim: #a0a3bc;
-  --t-cast: #4cc9f0; --t-regular: #9146ff; --t-guest: #ffc83d; --t-lurk: #8b90a7;
-  --live: #23c55e; --violet-hi: #a970ff;
-  --display: 'Chakra Petch', 'Arial Narrow', Impact, sans-serif;
-  --body: 'DM Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
-}
-html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: transparent; font-family: var(--body); color: var(--text); }
+/* Hallmark · component: stream overlay · genre: atmospheric · theme: Midnight (deal 3/3, seed streamer-tool-turns-twitch-21d9·7e034184·2026-11-01·r0) · states: 8 · contrast: pass · v2.0.0 */
+/* Hallmark · pre-emit critique: P4 H3 E3 S4 R4 V3 · weakest: S, credits are plain rows on purpose, the roll is the show */
 
-#status { position: fixed; left: 24px; top: 24px; display: flex; align-items: center; gap: 10px; padding: 8px 14px; background: var(--ink); border: 1px solid var(--line);
-  border-radius: 999px; font-size: 20px; font-weight: 500; transition: opacity .6s; }
+/* OBS browser source: transparent, clipped to the frame, never scrolls. */
+html, body { inline-size: 100%; block-size: 100%; margin: 0; overflow: clip; background: transparent; }
+
+#status { position: fixed; inset-block-start: var(--space-lg); inset-inline-start: var(--space-lg); padding: var(--space-xs) var(--space-md); background: var(--color-paper-2); color: var(--color-ink); font-size: var(--text-lg); transition: opacity var(--dur-long); }
 #status.hidden { opacity: 0; }
-.live-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--live); box-shadow: 0 0 10px var(--live); }
 
-#stage { position: fixed; left: 40px; bottom: 40px; width: 580px; }
+#stage { position: fixed; inset-inline-start: var(--space-xl); inset-block-end: var(--space-xl); inline-size: calc(var(--card-width) + var(--space-lg)); }
 
-/* ---- optional hand-drawn art (public/art/*.png) ---------------------------------------------- */
-body.has-frame-art .shell { background: var(--frame-art) center / 100% 100% no-repeat, var(--ink); }
-body.has-stamp-art .shell::before { content: ''; position: absolute; right: 14px; bottom: 12px; width: 60px; height: 60px; background: var(--stamp-art) center / contain no-repeat; opacity: .9; }
-body.has-bg-art #stage::before { content: ''; position: absolute; inset: -30px -30px -30px -50px; background: var(--bg-art) center / cover no-repeat; opacity: .35; z-index: -1; }
+/* optional hand-drawn art, switched on by overlay.js when files exist in public/art */
+body.has-frame-art .shell { background: var(--frame-art) center / 100% 100% no-repeat, var(--color-paper-2); }
+body.has-stamp-art .shell { position: relative; }
+body.has-stamp-art .shell::before { content: ""; position: absolute; inset-inline-end: var(--space-sm); inset-block-end: var(--space-sm); inline-size: 60px; block-size: 60px; background: var(--stamp-art) center / contain no-repeat; }
+body.has-bg-art #stage::before { content: ""; position: absolute; inset: calc(var(--space-lg) * -1); background: var(--bg-art) center / cover no-repeat; opacity: 0.35; z-index: -1; }
 
-
-/* ---- end credits ------------------------------------------------------------------------------ */
-#credits { position: fixed; inset: 0; overflow: hidden; opacity: 0; pointer-events: none; transition: opacity 1.2s ease; z-index: 10;
-  background:
-    radial-gradient(900px 420px at 50% -80px, rgba(145,70,255,.35), transparent 70%),
-    linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px) 0 0 / 48px 48px,
-    linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px) 0 0 / 48px 48px,
-    var(--void); }
+/* end credits: a plain roll on the ground colour */
+#credits { position: fixed; inset: 0; overflow: clip; background: var(--color-paper); opacity: 0; pointer-events: none; transition: opacity var(--dur-long); z-index: var(--z-modal); }
 #credits.on { opacity: 1; }
-#credits .scroll { position: absolute; left: 50%; top: 0; width: 880px; margin-left: -440px; padding-bottom: 40vh; transform: translateY(100vh); animation: roll 45s linear forwards; }
+#credits .scroll { position: absolute; inset-inline-start: 50%; inset-block-start: 0; inline-size: 55rem; margin-inline-start: -27.5rem; padding-block-end: 40vh; transform: translateY(100vh); animation: roll 45s linear forwards; }
 @keyframes roll { from { transform: translateY(100vh); } to { transform: translateY(-100%); } }
 
-#credits .ep { margin: 0 0 70px; font: 700 62px/1.1 var(--display); color: var(--text); text-shadow: 0 0 40px rgba(145,70,255,.7); }
-#credits .chan { display: flex; align-items: center; gap: 14px; margin: 64px 0 20px; font: 600 30px/1 var(--display); color: var(--text); }
-#credits .chan::before { content: ''; flex: none; width: 13px; height: 13px; background: var(--violet-hi); transform: rotate(45deg); box-shadow: 0 0 12px var(--violet-hi); }
-#credits .chan::after { content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, var(--line), transparent); }
-#credits .row { --tier: var(--t-cast); display: flex; align-items: center; gap: 18px; padding: 9px 0; }
-#credits .row.tier-regular { --tier: var(--t-regular); } #credits .row.tier-guest { --tier: var(--t-guest); } #credits .row.tier-lurk { --tier: var(--t-lurk); }
-#credits .av { flex: none; width: 56px; height: 56px; border-radius: 14px; display: grid; place-items: center; background: var(--name-color); color: #0e0e10;
-  font: 700 30px/1 var(--display); box-shadow: 0 0 0 3px var(--void), 0 0 0 5px var(--tier); }
-#credits .nm { font: 700 38px/1.1 var(--display); color: var(--name-color); }
-#credits .star { color: var(--t-guest); font-size: 28px; }
-#credits .rl { margin-left: auto; padding: 5px 16px 5px 12px; border-left: 4px solid var(--tier); background: color-mix(in srgb, var(--tier) 16%, transparent); font: 600 27px/1.15 var(--display); color: var(--text); }
-#credits .row.tier-lurk .av { filter: saturate(.45); }
-#credits .extras .nm { font-size: 30px; } #credits .extras .rl { font-size: 22px; } #credits .extras .av { width: 46px; height: 46px; font-size: 24px; }
-#credits .logo { display: flex; align-items: center; gap: 16px; margin-top: 110px; font: 600 36px/1 var(--display); color: var(--dim); }
-#credits .logo .mark { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 16px; background: var(--t-regular); color: #fff; font: 700 28px/1 var(--display); }
-#credits .logo b { color: var(--text); }
-#credits.compact .ep { font-size: 48px; margin-bottom: 40px; }
-#credits.compact .chan { margin: 36px 0 12px; font-size: 25px; }
-#credits.compact .row { padding: 3px 0; gap: 14px; }
-#credits.compact .av { width: 38px; height: 38px; font-size: 20px; border-radius: 10px; box-shadow: 0 0 0 2px var(--void), 0 0 0 4px var(--tier); }
-#credits.compact .nm { font-size: 26px; }
-#credits.compact .rl { font-size: 20px; padding: 3px 12px 3px 10px; }
+#credits .ep { margin: 0 0 var(--space-2xl); font: 700 var(--text-3xl)/1.1 var(--font-card); color: var(--color-ink); max-inline-size: 22ch; text-wrap: balance; }
+#credits .chan { margin: var(--space-2xl) 0 var(--space-md); padding-block-end: var(--space-xs); border-block-end: var(--rule-hair) solid var(--color-rule-2); font: 600 var(--text-xl)/1.2 var(--font-card); color: var(--color-muted); }
+#credits .row { --tier: var(--tier-cast); display: flex; align-items: center; gap: var(--space-md); padding-block: var(--space-xs); }
+#credits .row.tier-regular { --tier: var(--tier-regular); } #credits .row.tier-guest { --tier: var(--tier-guest); } #credits .row.tier-lurk { --tier: var(--tier-lurk); }
+#credits .av { flex: none; display: grid; place-items: center; inline-size: 52px; block-size: 52px; background: var(--name-color); color: var(--color-void); font: 700 var(--text-xl)/1 var(--font-card); outline: 2px solid var(--tier); outline-offset: 2px; margin-inline-start: 2px; }
+#credits .nm { font: 700 var(--text-2xl)/1.1 var(--font-card); color: var(--name-color); }
+#credits .star { color: var(--tier-guest); font-size: var(--text-xl); }
+#credits .rl { margin-inline-start: auto; font: 600 var(--text-xl)/1.2 var(--font-card); color: var(--color-ink-2); text-align: right; }
+#credits .row.tier-lurk .av { filter: saturate(0.4); }
+#credits .extras .nm { font-size: var(--text-xl); } #credits .extras .rl { font-size: var(--text-lg); } #credits .extras .av { inline-size: 42px; block-size: 42px; font-size: var(--text-lg); }
+#credits .logo { display: flex; align-items: center; gap: var(--space-md); margin-block-start: var(--space-3xl); font: 600 var(--text-xl)/1 var(--font-card); color: var(--color-muted); }
+#credits .logo .mark { display: grid; place-items: center; inline-size: 52px; block-size: 52px; background: var(--color-accent); color: var(--color-accent-ink); font: 700 var(--text-xl)/1 var(--font-card); }
+#credits .logo b { color: var(--color-ink); }
+#credits.compact .ep { font-size: var(--text-2xl); margin-block-end: var(--space-xl); }
+#credits.compact .chan { margin-block: var(--space-lg) var(--space-xs); font-size: var(--text-lg); }
+#credits.compact .row { padding-block: 2px; gap: var(--space-sm); }
+#credits.compact .av { inline-size: 36px; block-size: 36px; font-size: var(--text-md); outline-width: 1px; }
+#credits.compact .nm { font-size: var(--text-lg); }
+#credits.compact .rl { font-size: var(--text-md); }
 
-/* ?preview=1: a dark, busy stand-in for gameplay, so the overlay can be previewed outside OBS */
-body.preview { background:
-  radial-gradient(600px 300px at 70% 30%, rgba(76,120,255,.35), transparent 70%),
-  radial-gradient(500px 260px at 25% 55%, rgba(255,90,120,.25), transparent 70%),
-  linear-gradient(135deg, #0c1a2b 0%, #1b2d1f 50%, #2a1a35 100%); }
+/* ?preview=1: a plain stand-in for the game behind the overlay, for previews in a normal browser tab */
+body.preview { background: var(--color-paper-3); }
 
-@media (prefers-reduced-motion: reduce) { .card { transition: opacity .2s; transform: none; } .hud-bar i, .card:not(.casting) .frame, .card:not(.casting) .shell::after { animation: none; } .hud-bar i { width: 100%; } }
+@media (prefers-reduced-motion: reduce) {
+  #credits .scroll { animation-duration: 90s; }
+  #status, #credits { transition: none; }
+}

@@ -1,44 +1,50 @@
-/* The cast card (shared by the OBS overlay and the setup page preview). Colour = rarity tier. */
-/* ---- the card ------------------------------------------------------------------------------ */
-.card { --card-cut: 24px; --tier: var(--t-cast); position: relative; width: 560px; filter: drop-shadow(0 0 16px color-mix(in srgb, var(--tier) 55%, transparent));
-  transform: translateX(-40px); opacity: 0; transition: transform .45s cubic-bezier(.2,.9,.25,1.05), opacity .3s ease; }
-.card.in { transform: none; opacity: 1; }
-.card.tier-regular { --tier: var(--t-regular); }
-.card.tier-guest { --tier: var(--t-guest); }
-.card.tier-lurk { --tier: var(--t-lurk); filter: drop-shadow(0 0 10px color-mix(in srgb, var(--tier) 35%, transparent)) saturate(.85); }
-.card.tier-lurk.in { opacity: .82; }
+/* Hallmark · component: stream card · genre: atmospheric · theme: Midnight (deal 3/3, seed streamer-tool-turns-twitch-21d9·7e034184·2026-11-01·r0) · states: 8 · contrast: pass · v2.0.0 */
+/* Hallmark · pre-emit critique: P4 H3 E3 S5 R4 V3 · weakest: V, the tier colour is the whole signal so it carries one square key, a ring and the edge and nothing glows */
 
-/* angular HUD plate: two corners cut, a bright edge drawn by the padding of .frame */
-.frame, .hud { clip-path: polygon(var(--card-cut) 0, 100% 0, 100% calc(100% - var(--card-cut)), calc(100% - var(--card-cut)) 100%, 0 100%, 0 var(--card-cut)); }
-.frame { padding: 2px; background: linear-gradient(135deg, var(--tier) 0%, color-mix(in srgb, var(--tier) 22%, var(--void)) 55%, var(--tier) 100%); }
-.shell { clip-path: polygon(var(--card-cut) 0, 100% 0, 100% calc(100% - var(--card-cut)), calc(100% - var(--card-cut)) 100%, 0 100%, 0 var(--card-cut));
-  padding: 20px 26px 24px 22px; background: radial-gradient(420px 130px at 0 0, color-mix(in srgb, var(--tier) 22%, transparent), transparent), var(--ink); }
+/* The cast card. One card per chatter, shown on stream and previewed on the setup page.
+   Colour is the tier: cast, regular, guest, lurk (tokens.css). The plate is solid, so the text never fights the video. */
+.card { --tier: var(--tier-cast); position: relative; width: var(--card-width); max-width: 100%; color: var(--color-ink); font-family: var(--font-body); }
+.card.tier-regular { --tier: var(--tier-regular); }
+.card.tier-guest { --tier: var(--tier-guest); }
+.card.tier-lurk { --tier: var(--tier-lurk); }
 
-.top { display: flex; align-items: center; gap: 16px; }
-.tile { flex: none; width: 64px; height: 64px; border-radius: 14px; display: grid; place-items: center; background: var(--name-color); color: #0e0e10;
-  font: 700 34px/1 var(--display); box-shadow: 0 0 0 3px var(--ink), 0 0 0 5px var(--tier); }
-.card.tier-lurk .tile { filter: saturate(.45); }
+/* visible by default; the overlay script adds enter and leave */
+.card.enter { animation: card-in var(--dur-long) var(--ease-out) both; }
+.card.leave { animation: card-out var(--dur-short) var(--ease-in) both; }
+@keyframes card-in { from { opacity: 0; transform: translateX(calc(var(--space-xl) * -1)); } }
+@keyframes card-out { to { opacity: 0; transform: translateX(calc(var(--space-xl) * -1)); } }
+
+.frame, .shell, .hud { clip-path: polygon(var(--card-cut) 0, 100% 0, 100% calc(100% - var(--card-cut)), calc(100% - var(--card-cut)) 100%, 0 100%, 0 var(--card-cut)); }
+.frame { padding: var(--space-3xs); background: var(--tier); }
+.shell { padding: var(--space-md) var(--space-lg) var(--space-lg); background: var(--color-paper-2); }
+
+.top { display: flex; align-items: center; gap: var(--space-md); }
+.tile { flex: none; display: grid; place-items: center; inline-size: 64px; block-size: 64px; background: var(--name-color); color: var(--color-void);
+  font: 700 var(--text-2xl)/1 var(--font-card); outline: 2px solid var(--tier); outline-offset: 2px; }
 .id { flex: 1; min-width: 0; }
-.name { font: 700 32px/1.1 var(--display); color: var(--name-color); word-break: break-word; }
-.verb { margin-top: 3px; font-size: 21px; color: var(--dim); }
-.tag { align-self: flex-start; display: flex; align-items: center; gap: 9px; font: 600 19px/1.2 var(--display); color: var(--tier); text-align: right; }
-.tag::before { content: ''; flex: none; width: 11px; height: 11px; background: var(--tier); transform: rotate(45deg); box-shadow: 0 0 10px var(--tier); }
+.name { font: 700 var(--text-2xl)/1.1 var(--font-card); color: var(--name-color); overflow-wrap: anywhere; }
+.verb { margin-top: var(--space-2xs); font-size: var(--text-lg); color: var(--color-muted); }
+.tag { align-self: flex-start; display: flex; align-items: center; gap: var(--space-xs); font: 600 var(--text-md)/1.2 var(--font-card); color: var(--tier); text-align: right; }
+.tag::before { content: ""; flex: none; inline-size: 10px; block-size: 10px; background: var(--tier); }
 
-.role { margin-top: 16px; padding-left: 16px; border-left: 6px solid var(--tier); font: 700 46px/1.06 var(--display); color: #fff; word-break: break-word;
-  text-shadow: 0 0 24px color-mix(in srgb, var(--tier) 60%, transparent), 0 3px 0 rgba(0,0,0,.4); }
-.logline { margin-top: 10px; padding-left: 22px; font-size: 25px; line-height: 1.3; color: #d9dbea; }
+.role { margin-top: var(--space-md); font: 700 var(--text-4xl)/1.06 var(--font-card); color: var(--color-ink); overflow-wrap: anywhere; }
+.logline { margin-top: var(--space-xs); font-size: var(--text-xl); line-height: 1.3; color: var(--color-ink-2); }
 
-/* ---- the moment: a short "casting" progress bar, then the plate snaps in with a flash ------- */
-.hud { display: none; width: 470px; padding: 18px 26px 22px; background: var(--ink); border: 0; box-shadow: inset 0 0 0 2px var(--line); }
+/* the moment: a short casting bar, then the plate snaps in */
+.hud { display: none; inline-size: 29rem; max-inline-size: 100%; padding: var(--space-md) var(--space-lg); background: var(--color-paper-2); }
 .card.casting .hud { display: block; }
 .card.casting .frame { display: none; }
-.hud-text { font: 600 24px/1.2 var(--display); color: var(--dim); }
-.hud-bar { height: 8px; margin-top: 14px; border-radius: 4px; background: #262636; overflow: hidden; }
-.hud-bar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--t-regular), var(--t-cast)); animation: fill 1.5s linear forwards; }
-@keyframes fill { to { width: 100%; } }
-.card:not(.casting) .frame { animation: snap .4s cubic-bezier(.2,1.5,.4,1) both; }
-.card:not(.casting) .shell { position: relative; }
-.card:not(.casting) .shell::after { content: ''; position: absolute; inset: 0; background: #fff; opacity: 0; animation: flash .45s ease-out; pointer-events: none; }
-@keyframes snap { from { transform: scale(.9); } to { transform: none; } }
-@keyframes flash { 0% { opacity: .55; } 100% { opacity: 0; } }
+.hud-text { font: 600 var(--text-lg)/1.2 var(--font-card); color: var(--color-muted); }
+.hud-bar { block-size: 4px; margin-top: var(--space-sm); background: var(--color-rule-2); overflow: clip; }
+.hud-bar i { display: block; block-size: 100%; background: var(--color-accent-text); transform: scaleX(0); transform-origin: left; animation: casting-fill 1.5s linear forwards; }
+@keyframes casting-fill { to { transform: scaleX(1); } }
+.card:not(.casting) .frame { animation: snap var(--dur-short) var(--ease-out) both; }
+@keyframes snap { from { opacity: 0.5; transform: scale(0.96); } }
 
+.card.tier-lurk .tile { filter: saturate(0.4); }
+.card.tier-lurk .shell { background: var(--color-paper); color: var(--color-ink); }
+
+@media (prefers-reduced-motion: reduce) {
+  .card.enter, .card.leave, .card:not(.casting) .frame { animation: none; }
+  .hud-bar i { animation: none; transform: scaleX(1); }
+}

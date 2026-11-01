@@ -5,3 +5,4 @@ data/*
 !data/fallback-roles.json
 .fresh-clone/
 .DS_Store
+.hallmark/

@@ -8,7 +8,7 @@
   var statusText = document.getElementById('status-text');
   var TYPING_MS = CardView.TYPING_MS; // how long the casting bar shows before the card is revealed
   var HOLD_MS = 7000;   // card stays on screen
-  var EXIT_MS = 650;
+  var EXIT_MS = 250;
   var STING_VOLUME = 0.4;
   var sleep = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };
 
@@ -78,7 +78,7 @@
         stage.appendChild(node);
       } catch (err) { if (node) node.remove(); throw err; }
       nodes.set(c, node);
-      requestAnimationFrame(function () { requestAnimationFrame(function () { node.classList.add('in'); }); });
+      node.classList.add('enter');
       timers.set(c, setTimeout(function () {
         if (!nodes.has(c)) return; // removed before the reveal: no sting, no flash
         CardView.reveal(node);
@@ -97,7 +97,8 @@
       clearTimeout(timers.get(c));
       timers.delete(c);
       if (!node) return undefined;
-      node.classList.remove('in');
+      node.classList.remove('enter');
+      node.classList.add('leave');
       return sleep(EXIT_MS).then(function () { node.remove(); });
     },
   });

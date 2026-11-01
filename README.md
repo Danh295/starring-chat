@@ -15,11 +15,11 @@ It installs as one OBS browser-source URL. Nothing to download for the streamer.
 
 | End credits | Guided setup page |
 | --- | --- |
-| ![Episode credits scrolling](docs/img/credits.jpg) | ![Setup page](docs/img/setup.jpg) |
+| ![Episode credits scrolling](docs/img/credits.jpg) | ![Setup page](docs/img/setup.png) |
 
 ![Control room with the cast grouped by role](docs/img/control.jpg)
 
-**The look: a game party roster.** Gamers already read "player joined the party", class names and rarity colours without thinking, and a role is exactly a class. So card colour tells you who just showed up, with no reading needed: **cyan** is a first-time chatter, **violet** (Twitch's colour) is a Series Regular, **gold** is a raid guest, and **grey** is a lurker. The same colours carry through the credits and the control room.
+**The look.** The stream card borrows from a game party roster: gamers already read "player joined the party", class names and rarity colours without thinking, and a role is exactly a class. Card colour tells you who just showed up, with no reading needed: **cyan** is a first-time chatter, **violet** (Twitch's colour) is a Series Regular, **gold** is a raid guest, and **grey** is a lurker. The setup and control pages are plain tool screens in a dark, square-cut style with one violet signal, so the card is the only picture.
 
 ## Try it in one minute (no Twitch account, no API keys)
 
@@ -56,7 +56,7 @@ Other things to poke at while the server runs (from the same machine):
 | Cards | Angular HUD plate with the viewer's Twitch-style name colour, an avatar tile, and the role as the headline. A short "Casting director is picking a role" progress bar resolves into the card. The colour shows the tier (cyan, violet, gold, grey). Big type for phone viewers. |
 | Pacing | At most one card per 8 seconds per channel. Cards queue, nobody is skipped. At most 40 cast per episode. |
 | Credits | `!credits` (broadcaster or mod): AI episode title ("Episode 3: The One Where ..." with a fixed fallback), Starring (regulars first), Special Guest Stars, Background Extras, Directed by, Casting by. About 45 seconds. |
-| Streamer tools | `/setup.html` is a guided four-step flow with a live preview of the real card, a working test-card button, and a troubleshooting section. `/control.html` is a password-protected control room: a casting on/off switch, roll credits (with a countdown), new episode, test card, and the cast grouped by tier. Destructive actions ask you to tap twice instead of using pop-ups. |
+| Streamer tools | `/setup.html` is a guided four-step flow with a live preview of the real card, a working test-card button, and a troubleshooting section. `/control.html` is a password-protected control room: a casting on/off switch, roll credits (with a countdown), new episode, test card, and tonight's cast as a table with a filter. Destructive actions ask you to tap twice instead of using pop-ups, and keyboard focus is kept through every update. |
 | Chat reading | Twitch EventSub over WebSocket, with `session_reconnect` migration, keepalive watchdog and backoff. Optional anonymous IRC fallback (`CHAT_SOURCE=irc`). |
 | Sharing | `npm run tunnel` wraps a free Cloudflare quick tunnel so a streamer's OBS can load an overlay served from your laptop. |
 
@@ -73,18 +73,18 @@ Other things to poke at while the server runs (from the same machine):
 ## How it works
 
 ```
-Twitch chat ──EventSub WebSocket──▶ eventsub.js ─┐
-(or anonymous IRC)                   irc.js ─────┤
-demo.js (scripted chat) ─────────────────────────┤
-                                                 ▼
-                                          casting.js  ◀── roles.js ──▶ OpenAI (moderation + Responses API)
-                                  (who gets cast, episodes,        └─ fallback-roles.json
-                                   opt-outs, persistence)
-                                                 │ events
-                                                 ▼
-                                    pacer.js (1 card / 8 s, queued)
-                                                 ▼
-                                    hub.js  ──WebSocket──▶ public/overlay.html  (OBS browser source)
+Twitch chat --EventSub WebSocket--> eventsub.js --+
+(or anonymous IRC)                   irc.js ------+
+demo.js (scripted chat) --------------------------+
+                                                  v
+                                           casting.js <--> roles.js <--> OpenAI (moderation + Responses API)
+                                   (who gets cast, episodes,       \_ fallback-roles.json
+                                    opt-outs, persistence)
+                                                  | events
+                                                  v
+                                     pacer.js (1 card / 8 s, queued)
+                                                  v
+                                     hub.js --WebSocket--> public/overlay.html  (OBS browser source)
 ```
 
 `src/runtime.js` wires everything together; every module takes its dependencies (fetch, WebSocket, OpenAI client, clock) as arguments, which is what makes the test suite fast and offline.
