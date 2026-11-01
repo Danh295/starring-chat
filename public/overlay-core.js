@@ -69,6 +69,7 @@
     guest: { label: 'Special guest star', verb: 'dropped in on a raid' },
     lurk: { label: 'Background extra', verb: 'is watching from the back' },
   };
+  const knownKind = (k) => typeof k === 'string' && Object.prototype.hasOwnProperty.call(KINDS, k);
   const text = (v, fallback, max) => {
     const s = typeof v === 'string' ? v.replace(/\s+/g, ' ').trim() : '';
     return (s || fallback).slice(0, max);
@@ -78,14 +79,14 @@
   // guest (legendary gold), lurk (common slate). Only chatters can become regulars.
   function tierOf(m) {
     const x = m && typeof m === 'object' ? m : {};
-    const kind = KINDS[x.kind] ? x.kind : 'cast';
+    const kind = knownKind(x.kind) ? x.kind : 'cast';
     return kind === 'cast' && x.regular === true ? 'regular' : kind;
   }
 
   // Everything the card needs to display, from an untrusted event.
   function cardModel(msg) {
     const m = msg && typeof msg === 'object' ? msg : {};
-    const kind = KINDS[m.kind] ? m.kind : 'cast';
+    const kind = knownKind(m.kind) ? m.kind : 'cast';
     const regular = kind === 'cast' && m.regular === true;
     const who = text(m.user, 'someone', 25);
     return {

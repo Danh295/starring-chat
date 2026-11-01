@@ -21,15 +21,17 @@
   var buttons = $('legend').querySelectorAll('button');
   var current = 0;
   var auto = null;
+  var revealTimer = null;
   var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   function showSample(tier) {
     current = ORDER.indexOf(tier);
+    clearTimeout(revealTimer);
     while (stage.firstChild) stage.removeChild(stage.firstChild);
     var node = CardView.build(SAMPLES[tier]);
     node.classList.add('in');
     stage.appendChild(node);
-    setTimeout(function () { CardView.reveal(node); }, reduceMotion ? 0 : 1000);
+    revealTimer = setTimeout(function () { CardView.reveal(node); }, reduceMotion ? 0 : CardView.TYPING_MS);
     buttons.forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.tier === tier)); });
   }
   buttons.forEach(function (b) {
@@ -94,7 +96,8 @@
     btn.disabled = true;
     fetch('test/cast?channel=' + encodeURIComponent(channel) + '&user=You', { cache: 'no-store' })
       .then(function (res) {
-        if (res.status === 403 || res.status === 429) {
+        if (res.status === 429) { result('warn', 'Too many attempts. Wait a minute and try again.'); return null; }
+        if (res.status === 403) {
           result('warn', 'Test cards can only be sent from the computer running Starring: Chat. Use the control room there instead.', 'Open the control room', 'control.html?channel=' + encodeURIComponent(channel));
           return null;
         }

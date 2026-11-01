@@ -11,6 +11,13 @@
   var creditsUntil = 0;
   var creditsTimer = null;
   var CREDITS_MS = 45000;
+  var disarmTimer = null;
+
+  // One timer drops any "tap again" prompt back to normal once its window has passed.
+  function scheduleDisarm() {
+    clearTimeout(disarmTimer);
+    disarmTimer = setTimeout(function () { renderTiles(); renderCast(); }, 4100);
+  }
 
   // ---- feedback ------------------------------------------------------------------------------------------
   var toastTimer = null;
@@ -31,9 +38,10 @@
       body: body ? JSON.stringify(body) : undefined,
     }).then(function (res) {
       return res.json().catch(function () { return {}; }).then(function (data) {
-        if (res.status === 401) { lock('That password is not right. Check CONTROL_PASSWORD on the server.'); throw new Error('Wrong password.'); }
-        if (res.status === 429) { lock('Too many wrong passwords. Wait a minute and try again.'); throw new Error('Locked out for a minute.'); }
-        if (res.status === 503) { lock('The control room is switched off. Set CONTROL_PASSWORD on the server and restart it.'); throw new Error('Control room is off.'); }
+        var locked = function (message) { lock(message); var err = new Error(message); err.locked = true; return err; };
+        if (res.status === 401) throw locked('That password is not right. Check CONTROL_PASSWORD on the server.');
+        if (res.status === 429) throw locked('Too many wrong passwords. Wait a minute and try again.');
+        if (res.status === 503) throw locked('The control room is switched off. Set CONTROL_PASSWORD on the server and restart it.');
         if (res.status === 404) throw new Error('This server is not running Starring: Chat for #' + channel + '.');
         if (!res.ok) throw new Error(data.error || ('Something went wrong (' + res.status + ').'));
         return data;
@@ -44,6 +52,8 @@
   function lock(message) {
     clearInterval(poll); poll = null; password = ''; seq += 1;
     twoStep.reset();
+    clearTimeout(disarmTimer); clearInterval(creditsTimer); creditsTimer = null; creditsUntil = 0;
+    $('filter').value = '';
     $('panel').classList.add('hidden');
     $('login').classList.remove('hidden');
     ['chanChip', 'stateChip', 'epChip'].forEach(function (id) { $(id).classList.add('hidden'); });
@@ -95,7 +105,7 @@
         act('uncast', { login: m.login }, m.name + ' removed from this episode.');
       } else {
         renderCast();
-        setTimeout(renderCast, 4100); // drop the "Sure?" state if they walk away
+        scheduleDisarm();
       }
     });
     row.appendChild(av); row.appendChild(tx); row.appendChild(btn);
@@ -103,6 +113,7 @@
   }
 
   function renderCast() {
+    if ((state.cast || []).length < 8 && $('filter').value) $('filter').value = ''; // never filter with a hidden box
     var q = $('filter').value.trim().toLowerCase();
     var cast = (state.cast || []).filter(function (m) {
       return !q || (m.name + ' ' + m.role).toLowerCase().indexOf(q) !== -1;
@@ -131,7 +142,7 @@
     var mine = ++seq;
     return api('GET', 'cast?channel=' + encodeURIComponent(channel))
       .then(function (s) { if (mine === seq && password) { state = s; render(); } })
-      .catch(function (e) { toast(e.message, true); })
+      .catch(function (e) { if (!e.locked) toast(e.message, true); })
       .then(function () { refreshing = false; });
   }
 
@@ -139,7 +150,7 @@
     return api('POST', path, Object.assign({ channel: channel }, extra || {}))
       .then(function (res) { if (okText) toast(okText); return res; })
       .then(function (res) { refresh(); return res; })
-      .catch(function (e) { toast(e.message, true); });
+      .catch(function (e) { if (!e.locked) toast(e.message, true); });
   }
 
   // ---- credits countdown --------------------------------------------------------------------------------------
@@ -188,8 +199,11 @@
   $('loginForm').addEventListener('submit', connect);
   $('casting').addEventListener('click', function () {
     var pause = !state.paused;
+    seq += 1; // an in-flight poll must not overwrite the new value with the old one
     state.paused = pause; renderHeader(); // respond instantly, the server confirms on the next refresh
-    act(pause ? 'pause' : 'resume', null, pause ? 'Casting paused.' : 'Casting is on.');
+    act(pause ? 'pause' : 'resume', null, pause ? 'Casting paused.' : 'Casting is on.').then(function (res) {
+      if (!res) { state.paused = !pause; renderHeader(); } // the request failed: show the real state again
+    });
   });
   $('credits').addEventListener('click', function () {
     if ($('credits').getAttribute('aria-disabled') === 'true') return;
@@ -210,7 +224,7 @@
       act('new-episode', null, 'New episode started.');
     } else {
       renderTiles();
-      setTimeout(renderTiles, 4100);
+      scheduleDisarm();
     }
   });
   $('testCard').addEventListener('click', function () {

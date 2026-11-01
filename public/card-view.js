@@ -9,7 +9,11 @@
   }
 
   // Returns a card in its "casting" phase (a progress bar). Call reveal() to show the role.
+  // How long the "casting" bar shows before the role is revealed; the overlay and the setup preview both use this.
+  var TYPING_MS = 1500;
+
   function build(msg) {
+    if (!root.OverlayCore) throw new Error('card-view.js needs overlay-core.js loaded first');
     var m = root.OverlayCore.cardModel(msg);
     var node = el('div', 'card casting tier-' + m.tier + ' ' + m.className);
     node.style.setProperty('--name-color', m.color);
@@ -40,5 +44,5 @@
 
   function reveal(node) { node.classList.remove('casting'); }
 
-  root.CardView = { build: build, reveal: reveal };
+  root.CardView = { build: build, reveal: reveal, TYPING_MS: TYPING_MS };
 })(window);

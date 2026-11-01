@@ -210,3 +210,12 @@ test('cardModel carries the tier for colouring', () => {
   assert.strictEqual(cardModel({ kind: 'lurk', user: 'a', role: 'The A' }).tier, 'lurk');
   assert.strictEqual(cardModel({ kind: 'nonsense' }).tier, 'cast');
 });
+
+test('inherited object keys are not treated as card kinds', () => {
+  for (const kind of ['constructor', 'toString', '__proto__', 'hasOwnProperty']) {
+    assert.strictEqual(tierOf({ kind }), 'cast', kind);
+    const m = cardModel({ kind, user: 'a', role: 'The A' });
+    assert.strictEqual(m.tier, 'cast', kind);
+    assert.strictEqual(typeof m.label, 'string', kind);
+  }
+});

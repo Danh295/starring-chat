@@ -6,7 +6,7 @@
   var stage = document.getElementById('stage');
   var statusEl = document.getElementById('status');
   var statusText = document.getElementById('status-text');
-  var TYPING_MS = 1500;   // how long "Casting director is typing" shows before the card is revealed
+  var TYPING_MS = CardView.TYPING_MS; // how long the casting bar shows before the card is revealed
   var HOLD_MS = 7000;   // card stays on screen
   var EXIT_MS = 650;
   var STING_VOLUME = 0.4;
