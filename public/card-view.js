@@ -16,6 +16,7 @@
     if (!root.OverlayCore) throw new Error('card-view.js needs overlay-core.js loaded first');
     var m = root.OverlayCore.cardModel(msg);
     var card = el('div', 'card casting tier-' + m.tier);
+    card.style.setProperty('--casting-ms', TYPING_MS + 'ms'); // the bar and the reveal share one duration
 
     var casting = el('div', 'casting-sign');
     casting.appendChild(el('p', 'casting-text', 'Casting director is picking a role'));

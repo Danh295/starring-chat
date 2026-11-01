@@ -100,7 +100,7 @@
     queue.reset();
     while (creditsEl.firstChild) creditsEl.removeChild(creditsEl.firstChild);
     creditsEl.className = m.compact ? 'compact' : '';
-    var roll = el('div', 'roll');
+    var roll = el('div', 'roll keep-motion'); // the roll is the content, so it keeps moving even when other motion is reduced
     roll.style.animationDuration = m.scrollMs + 'ms';
     roll.appendChild(el('h1', 'roll-title', m.title));
     board(roll, 'Starring', m.starring, 'board-stars', function (p) { return p.regular ? 'regular' : 'cast'; });
@@ -116,13 +116,12 @@
     creditsEl.appendChild(roll);
     creditsEl.classList.add('on');
     OverlaySound.playTheme(m.scrollMs);
+    setTimeout(function () { OverlaySound.stopTheme(); creditsEl.classList.remove('on'); }, m.scrollMs + 300); // fade out first
     setTimeout(function () {
-      OverlaySound.stopTheme();
-      creditsEl.classList.remove('on');
       while (creditsEl.firstChild) creditsEl.removeChild(creditsEl.firstChild);
       creditsActive = false;
       deferred.splice(0).forEach(function (c) { queue.push(c); });
-    }, m.scrollMs + 1500);
+    }, m.scrollMs + 1200);
   }
 
   // ---- connection
@@ -144,7 +143,7 @@
     ws.onmessage = function (e) {
       var msg;
       try { msg = JSON.parse(e.data); } catch (_) { return; }
-      if (msg.type === 'hello') { attempt = 0; setStatus('Starring: Chat is connected', 4000); }
+      if (msg.type === 'hello') { attempt = 0; setStatus('Starring: Chat is connected', 4000); loadArt(); }
       else if (msg.type === 'cast') { if (creditsActive) { if (deferred.length < 20) deferred.push(msg); } else queue.push(msg); }
       else if (msg.type === 'credits') rollCredits(msg);
       else if (msg.type === 'uncast') {

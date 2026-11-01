@@ -19,8 +19,8 @@ body.has-bg-art #stage::before { content: ""; position: absolute; inset: calc(va
 body.preview { background: var(--color-paper-3); }
 
 /* ---- the credits: a departures board ------------------------------------------------------------------- */
-#credits { position: fixed; inset: 0; overflow: clip; background: var(--color-paper); z-index: var(--z-modal); }
-#credits:not(.on) { visibility: hidden; }
+#credits { position: fixed; inset: 0; overflow: clip; background: var(--color-paper); z-index: var(--z-modal); opacity: 0; visibility: hidden; transition: opacity var(--dur-long) steps(4), visibility 0s var(--dur-long); }
+#credits.on { opacity: 1; visibility: visible; transition: opacity var(--dur-long) steps(4), visibility 0s; }
 .roll { position: absolute; inset-inline-start: 50%; inset-block-start: 0; inline-size: 56rem; max-inline-size: 92vw; margin-inline-start: -28rem; padding-block-end: 40vh; transform: translateY(100vh); animation: roll 45s linear forwards; }
 @media (max-width: 60rem) { .roll { margin-inline-start: -46vw; } }
 @keyframes roll { from { transform: translateY(100vh); } to { transform: translateY(-100%); } }
@@ -42,4 +42,3 @@ body.preview { background: var(--color-paper-3); }
 .compact .row .line-square { inline-size: 1.75rem; block-size: 1.75rem; font-size: var(--text-md); }
 .compact .row-name { font-size: var(--text-md); } .compact .row-role { font-size: var(--text-sm); }
 
-@media (prefers-reduced-motion: reduce) { .roll { animation-duration: 90s; } }

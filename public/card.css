@@ -32,7 +32,7 @@
 .casting-sign { display: none; inline-size: min(100%, 28rem); padding: var(--space-md) var(--space-lg); border: var(--rule-bar) solid var(--color-ink); background: var(--color-paper-2); }
 .casting-text { margin: 0; color: var(--color-ink-2); font-size: var(--text-md); font-weight: 500; }
 .casting-track { block-size: 4px; margin-block-start: var(--space-sm); background: var(--color-rule); overflow: clip; }
-.casting-track i { display: block; block-size: 100%; background: var(--color-accent-text); transform: scaleX(0); transform-origin: left; animation: casting-fill 1.5s steps(12) forwards; }
+.casting-track i { display: block; block-size: 100%; background: var(--color-accent-text); transform: scaleX(0); transform-origin: left; animation: casting-fill var(--casting-ms, 1500ms) steps(12) forwards; }
 @keyframes casting-fill { to { transform: scaleX(1); } }
 .card.casting .casting-sign { display: block; }
 .card.casting .plate { display: none; }

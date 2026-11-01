@@ -62,6 +62,7 @@
     } else {
       setState(stops[0], 'current'); setState(stops[1], 'locked'); setState(stops[2], 'locked'); setState(stops[3], 'locked');
       $('test-result').textContent = '';
+      $('test-result').className = 'result';
     }
   }
   input.addEventListener('input', update);

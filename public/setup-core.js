@@ -44,15 +44,14 @@
       } catch (_) { return false; }
     }
     if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
-      // writeText can hang when the browser is waiting on a permission, so give it a moment and then use the older path
+      // writeText can hang while the browser waits on a permission. Try the older path after a moment, but if that
+      // fails keep waiting for the real answer (up to 8 seconds) instead of throwing a late success away.
       return new Promise(function (resolve) {
         var settled = false;
-        var finish = function (ok) { if (!settled) { settled = true; resolve(ok); } };
-        var timer = setTimeout(function () { finish(fallback()); }, 1500);
-        navigator.clipboard.writeText(text).then(
-          function () { clearTimeout(timer); finish(true); },
-          function () { clearTimeout(timer); finish(fallback()); }
-        );
+        var finish = function (ok) { if (!settled) { settled = true; clearTimeout(soon); clearTimeout(late); resolve(ok); } };
+        var soon = setTimeout(function () { if (fallback()) finish(true); }, 1500);
+        var late = setTimeout(function () { finish(false); }, 8000);
+        navigator.clipboard.writeText(text).then(function () { finish(true); }, function () { finish(fallback()); });
       });
     }
     return Promise.resolve(fallback());

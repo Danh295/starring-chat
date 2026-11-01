@@ -49,7 +49,7 @@
   function lock(message) {
     clearInterval(poll); poll = null; password = ''; seq += 1; loaded = false; connected = true; pendingRefresh = false; lastSig = '';
     twoStep.reset();
-    clearTimeout(disarmTimer); clearInterval(creditsTimer); creditsTimer = null; creditsUntil = 0;
+    clearTimeout(disarmTimer); clearInterval(creditsTimer); creditsTimer = null; creditsUntil = 0; resetCreditsButton();
     $('filter').value = '';
     $('panel').classList.add('hidden');
     $('login').classList.remove('hidden');
@@ -114,7 +114,7 @@
     btn.setAttribute('aria-label', (armed ? 'Yes, remove ' : 'Remove ') + m.name + ' from tonight’s cast');
     btn.addEventListener('click', function () {
       if (twoStep.press(key) === 'confirmed') {
-        act2('uncast', { login: m.login }, m.name + ' removed from this episode.');
+        doAction('uncast', { login: m.login }, m.name + ' removed from this episode.');
       } else {
         say('Tap “Yes, remove” to take ' + m.name + ' out of tonight’s cast.');
         renderCast();
@@ -190,6 +190,7 @@
     var mine = ++seq;
     return api('GET', 'cast?channel=' + encodeURIComponent(channel))
       .then(function (s) {
+        if (!connected) say('Reconnected.');
         connected = true; loaded = true;
         if (mine === seq && password) {
           state = s; stamp();
@@ -205,11 +206,18 @@
       .then(function () { refreshing = false; if (pendingRefresh) { pendingRefresh = false; refresh(); } });
   }
 
-  function act2(path, extra, okText) {
+  function doAction(path, extra, okText) {
     return api('POST', path, Object.assign({ channel: channel }, extra || {}))
       .then(function (res) { if (okText) say(okText); return res; })
       .then(function (res) { refresh(); return res; })
       .catch(function (e) { if (!e.locked) say(e.message, true); });
+  }
+
+  function resetCreditsButton() {
+    $('credits').setAttribute('aria-disabled', 'false');
+    $('creditsTitle').textContent = 'Roll credits';
+    $('creditsSub').textContent = 'End the episode with the credits (about 45 seconds).';
+    $('creditsProg').style.transform = 'scaleX(0)';
   }
 
   // The 3px meter is the only thing that moves while the credits roll.
@@ -218,10 +226,7 @@
     var btn = $('credits');
     if (left <= 0) {
       clearInterval(creditsTimer); creditsTimer = null;
-      btn.setAttribute('aria-disabled', 'false');
-      $('creditsTitle').textContent = 'Roll credits';
-      $('creditsSub').textContent = 'End the episode with the credits (about 45 seconds).';
-      $('creditsProg').style.transform = 'scaleX(0)';
+      resetCreditsButton();
       return;
     }
     btn.setAttribute('aria-disabled', 'true');
@@ -274,7 +279,7 @@
       if (pause === state.paused) return;
       seq += 1; // an in-flight poll must not overwrite the new choice with the old one
       state.paused = pause; renderHeader(); // answer at once; the server confirms on the next poll
-      act2(pause ? 'pause' : 'resume', null, pause ? 'Casting paused.' : 'Casting is on.').then(function (res) {
+      doAction(pause ? 'pause' : 'resume', null, pause ? 'Casting paused.' : 'Casting is on.').then(function (res) {
         if (!res) { state.paused = !pause; renderHeader(); } // the request failed: show the real state again
       });
     });
@@ -284,7 +289,7 @@
     if ($('credits').getAttribute('aria-disabled') === 'true') { say('Credits are already rolling.'); return; }
     if (creditsPending) return;
     creditsPending = true;
-    act2('credits', null, null).then(function (res) {
+    doAction('credits', null, null).then(function (res) {
       creditsPending = false;
       if (!res) return;
       if (res.rolled) {
@@ -299,7 +304,7 @@
   $('newEpisode').addEventListener('click', function () {
     if (twoStep.press('new-episode') === 'confirmed') {
       renderTiles();
-      act2('new-episode', null, 'New episode started.');
+      doAction('new-episode', null, 'New episode started.');
     } else {
       say('Tap New episode again within 4 seconds to clear tonight’s cast and start fresh.');
       renderTiles();
@@ -307,7 +312,7 @@
     }
   });
   $('testCard').addEventListener('click', function () {
-    act2('test-card', null, null).then(function (res) {
+    doAction('test-card', null, null).then(function (res) {
       if (!res) return;
       if (res.delivered > 0) say('Test card sent.');
       else say('Sent, but no overlay is open. Add the link in OBS first.', true);
