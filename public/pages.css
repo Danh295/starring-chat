@@ -85,8 +85,9 @@ ol.steps { padding-left: 22px; } ol.steps li { margin: 8px 0; }
 .member .nm { display: block; font: 700 15px/1.2 var(--display); color: var(--c, var(--text)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .member .nm .st { color: var(--gold); margin-left: 4px; }
 .member .rl { display: block; font-size: 12.5px; color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.member button { padding: 6px 10px; min-height: 30px; font-size: 13px; opacity: 0; }
-.member:hover button, .member:focus-within button { opacity: 1; }
+.member button { padding: 6px 10px; min-height: 30px; font-size: 13px; }
+/* with a mouse the Uncast button appears on hover or keyboard focus; on touch it is always visible */
+@media (hover: hover) and (min-width: 721px) { .member button { opacity: 0; } .member:hover button, .member:focus-within button { opacity: 1; } }
 .empty { margin: 14px 10px; color: var(--dim); font-size: 14.5px; }
 
 /* rail and sidebar stay put while the main pane scrolls (desktop only) */
@@ -101,9 +102,8 @@ ol.steps { padding-left: 22px; } ol.steps li { margin: 8px 0; }
   .side h1 { display: none; }
   .side nav { flex-direction: row; overflow-x: auto; padding: 8px; }
   .side nav a { white-space: nowrap; }
-  .userbar { display: none; }
+  .userbar { margin-top: 0; border-top: 0; padding: 6px 12px 10px; }
   .topbar { padding: 0 16px; } .content { padding: 16px; }
   .cmds li { grid-template-columns: 1fr; gap: 2px; }
-  .member button { opacity: 1; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }

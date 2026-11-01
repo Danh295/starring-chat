@@ -4,16 +4,10 @@
   var current = '';
 
   function copyText(text, flag) {
-    var done = function () { flag.textContent = 'Copied!'; setTimeout(function () { flag.textContent = ''; }, 2500); };
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).then(done, function () { fallback(text, done); });
-    } else fallback(text, done);
-  }
-  function fallback(text, done) {
-    var t = document.createElement('textarea');
-    t.value = text; document.body.appendChild(t); t.select();
-    try { document.execCommand('copy'); done(); } catch (_) { /* user can copy by hand */ }
-    t.remove();
+    SetupCore.copyToClipboard(text).then(function (ok) {
+      flag.textContent = ok ? 'Copied!' : 'Could not copy. Select the text and copy it by hand.';
+      setTimeout(function () { flag.textContent = ''; }, 3500);
+    });
   }
 
   function make() {

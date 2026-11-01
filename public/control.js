@@ -33,6 +33,8 @@
     $('userName').textContent = 'Not connected';
     $('userState').textContent = 'Enter your password';
     $('userAv').textContent = '?';
+    $('overlayUrl').textContent = '';
+    $('copiedOverlay').textContent = '';
     while ($('cast').firstChild) $('cast').removeChild($('cast').firstChild);
     $('empty').textContent = 'Connect to see tonight\'s cast.';
     $('empty').classList.remove('hidden');
@@ -122,13 +124,10 @@
   }
 
   $('copyOverlay').addEventListener('click', function () {
-    var url = $('overlayUrl').textContent;
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(url).then(function () {
-        $('copiedOverlay').textContent = 'Copied!';
-        setTimeout(function () { $('copiedOverlay').textContent = ''; }, 2500);
-      }, function () { $('copiedOverlay').textContent = 'Copy it by hand from the box above.'; });
-    }
+    SetupCore.copyToClipboard($('overlayUrl').textContent).then(function (ok) {
+      $('copiedOverlay').textContent = ok ? 'Copied!' : 'Could not copy. Select the URL and copy it by hand.';
+      setTimeout(function () { $('copiedOverlay').textContent = ''; }, 3500);
+    });
   });
   $('chan').value = channel;
   $('connect').addEventListener('click', connect);

@@ -6,7 +6,7 @@
   var stage = document.getElementById('stage');
   var statusEl = document.getElementById('status');
   var statusText = document.getElementById('status-text');
-  var CLAP_MS = 1500;   // "casting director is typing..." before the reveal
+  var TYPING_MS = 1500;   // how long "Casting director is typing" shows before the card is revealed
   var HOLD_MS = 7000;   // card stays on screen
   var EXIT_MS = 650;
   var STING_VOLUME = 0.4;
@@ -105,11 +105,11 @@
         if (!nodes.has(c)) return; // removed before the reveal: no sting, no flash
         node.classList.remove('casting');
         playSting();
-      }, CLAP_MS));
+      }, TYPING_MS));
     },
     wait: function (_c, skipped) {
       return new Promise(function (resolve) {
-        var t = setTimeout(resolve, CLAP_MS + HOLD_MS);
+        var t = setTimeout(resolve, TYPING_MS + HOLD_MS);
         skipped.then(function () { clearTimeout(t); resolve(); });
       });
     },
@@ -210,7 +210,14 @@
     section(scroll, 'starring', m.starring, 'stars');
     section(scroll, 'special-guest-stars', m.guests, 'guests');
     section(scroll, 'background-extras', m.extras, 'extras');
-    if (m.directedBy) section(scroll, 'directed-by', [{ user: m.directedBy, role: 'The Showrunner', regular: false }], 'stars');
+    if (m.directedBy) {
+      scroll.appendChild(el('div', 'chan', 'directed-by'));
+      var dir = el('div', 'row stars');
+      dir.style.setProperty('--name-color', OverlayCore.nameColor(m.directedBy));
+      dir.appendChild(el('div', 'av', OverlayCore.initialOf(m.directedBy)));
+      dir.appendChild(el('span', 'nm', m.directedBy));
+      scroll.appendChild(dir);
+    }
     var logo = el('div', 'logo');
     logo.appendChild(el('span', 'mark', 'SC'));
     var credit = el('span', '', 'Casting by ');
