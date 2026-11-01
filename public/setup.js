@@ -1,6 +1,6 @@
 (function () {
   var $ = function (id) { return document.getElementById(id); };
-  var input = $('channel');
+  var input = $('channel-input');
   var current = '';
 
   function copyText(text, flag) {
@@ -27,7 +27,9 @@
     current = SetupCore.overlayUrl(location.origin, channel);
     $('url').textContent = current;
     $('result').classList.remove('hidden');
-    $('controlLink').href = 'control.html?channel=' + encodeURIComponent(channel);
+    var ctl = 'control.html?channel=' + encodeURIComponent(channel);
+    $('controlLink').href = ctl;
+    $('controlTile').href = ctl;
   }
 
   $('make').addEventListener('click', make);
