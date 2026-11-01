@@ -82,7 +82,7 @@ test('initialOf gives the first letter or digit, uppercased', () => {
 test('cardModel: kinds map to labels, verbs and classes', () => {
   const cast = cardModel({ kind: 'cast', user: 'Pixel', role: 'The Snack Critic', logline: 'Harsh but fair.', regular: false });
   assert.deepStrictEqual(cast, {
-    className: 'cast', label: 'Starring', verb: 'joined the cast', who: 'Pixel', role: 'The Snack Critic',
+    className: 'cast', tier: 'cast', label: 'Starring', verb: 'joined the cast', who: 'Pixel', role: 'The Snack Critic',
     logline: 'Harsh but fair.', badge: '', color: nameColor('Pixel'), initial: 'P',
   });
   const guest = cardModel({ kind: 'guest', user: 'R', role: 'The Special Guest', logline: 'x' });
@@ -191,4 +191,31 @@ test('creditsModel caps very long lists', () => {
 test('creditsModel: null, empty and non-numeric scrollMs fall back to the 45s default', () => {
   for (const v of [null, '', undefined, 'abc', NaN]) assert.strictEqual(creditsModel({ scrollMs: v }).scrollMs, 45000, String(v));
   assert.strictEqual(creditsModel({ scrollMs: 30000 }).scrollMs, 30000);
+});
+
+const { tierOf } = require('../public/overlay-core');
+
+test('tierOf maps a cast member to a rarity tier: regular > cast; guest and lurk by kind', () => {
+  assert.strictEqual(tierOf({ kind: 'cast', regular: true }), 'regular');
+  assert.strictEqual(tierOf({ kind: 'cast' }), 'cast');
+  assert.strictEqual(tierOf({ kind: 'guest' }), 'guest');
+  assert.strictEqual(tierOf({ kind: 'lurk' }), 'lurk');
+  assert.strictEqual(tierOf({ kind: 'guest', regular: true }), 'guest', 'only chatters become regulars');
+  assert.strictEqual(tierOf({}), 'cast');
+  assert.strictEqual(tierOf(null), 'cast');
+});
+
+test('cardModel carries the tier for colouring', () => {
+  assert.strictEqual(cardModel({ kind: 'cast', regular: true, user: 'a', role: 'The A' }).tier, 'regular');
+  assert.strictEqual(cardModel({ kind: 'lurk', user: 'a', role: 'The A' }).tier, 'lurk');
+  assert.strictEqual(cardModel({ kind: 'nonsense' }).tier, 'cast');
+});
+
+test('inherited object keys are not treated as card kinds', () => {
+  for (const kind of ['constructor', 'toString', '__proto__', 'hasOwnProperty']) {
+    assert.strictEqual(tierOf({ kind }), 'cast', kind);
+    const m = cardModel({ kind, user: 'a', role: 'The A' });
+    assert.strictEqual(m.tier, 'cast', kind);
+    assert.strictEqual(typeof m.label, 'string', kind);
+  }
 });

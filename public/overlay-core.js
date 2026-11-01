@@ -69,19 +69,29 @@
     guest: { label: 'Special guest star', verb: 'dropped in on a raid' },
     lurk: { label: 'Background extra', verb: 'is watching from the back' },
   };
+  const knownKind = (k) => typeof k === 'string' && Object.prototype.hasOwnProperty.call(KINDS, k);
   const text = (v, fallback, max) => {
     const s = typeof v === 'string' ? v.replace(/\s+/g, ' ').trim() : '';
     return (s || fallback).slice(0, max);
   };
 
+  // The rarity tier that drives a member's colour everywhere: regular (epic violet), cast (rare cyan),
+  // guest (legendary gold), lurk (common slate). Only chatters can become regulars.
+  function tierOf(m) {
+    const x = m && typeof m === 'object' ? m : {};
+    const kind = knownKind(x.kind) ? x.kind : 'cast';
+    return kind === 'cast' && x.regular === true ? 'regular' : kind;
+  }
+
   // Everything the card needs to display, from an untrusted event.
   function cardModel(msg) {
     const m = msg && typeof msg === 'object' ? msg : {};
-    const kind = KINDS[m.kind] ? m.kind : 'cast';
+    const kind = knownKind(m.kind) ? m.kind : 'cast';
     const regular = kind === 'cast' && m.regular === true;
     const who = text(m.user, 'someone', 25);
     return {
       className: kind + (regular ? ' regular' : ''),
+      tier: tierOf(m),
       label: KINDS[kind].label,
       verb: KINDS[kind].verb,
       who,
@@ -114,7 +124,7 @@
     };
   }
 
-  const api = { createCardQueue, cardModel, creditsModel, nameColor, initialOf, NAME_COLORS };
+  const api = { createCardQueue, cardModel, creditsModel, nameColor, initialOf, tierOf, NAME_COLORS };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.OverlayCore = api;
 })(typeof window !== 'undefined' ? window : globalThis);

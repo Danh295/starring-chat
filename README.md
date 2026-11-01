@@ -13,13 +13,13 @@ It installs as one OBS browser-source URL. Nothing to download for the streamer.
 
 ![A role card for a Series Regular](docs/img/role-card.jpg)
 
-| End credits (a channel log) | Streamer setup page |
+| End credits | Guided setup page |
 | --- | --- |
 | ![Episode credits scrolling](docs/img/credits.jpg) | ![Setup page](docs/img/setup.jpg) |
 
 ![Control room with the cast grouped by role](docs/img/control.jpg)
 
-The look borrows from the two places this lives: Twitch chat (per-user name colors, badges, violet) and Discord (a role is exactly what the casting director hands out, so a cast card is styled like a member joining with a role chip, status dot and `#channel` headings).
+**The look: a game party roster.** Gamers already read "player joined the party", class names and rarity colours without thinking, and a role is exactly a class. So card colour tells you who just showed up, with no reading needed: **cyan** is a first-time chatter, **violet** (Twitch's colour) is a Series Regular, **gold** is a raid guest, and **grey** is a lurker. The same colours carry through the credits and the control room.
 
 ## Try it in one minute (no Twitch account, no API keys)
 
@@ -53,10 +53,10 @@ Other things to poke at while the server runs (from the same machine):
 | Casting | Once per episode, on a viewer's first message. Never the broadcaster, the bot, known bots (Nightbot, StreamElements, Streamlabs, Moobot, Fossabot, SoundAlerts, WizeBot), links, or other bots' `!commands`. |
 | AI roles | OpenAI Responses API with structured output. The chat message is moderated first, the output is validated (role starts with "The", 2 to 4 words; logline under 12 words; no links or @mentions) and moderated again. If anything is slow (3 second budget), flagged, invalid or the key is missing, a role from `data/fallback-roles.json` is used. |
 | Memory | `data/cast-<channel>.json` remembers how many episodes each person has appeared in. Series Regular from the 3rd episode. A quick restart resumes the same episode instead of double-counting. |
-| Cards | Discord-style "member joined" card with a Twitch-coloured name, avatar tile, status dot and a role chip, revealed after a "Casting director is typing" indicator. Guest Stars are gold, Background Extras are muted, Series Regulars get a Twitch-style badge. Big type for phone viewers. |
+| Cards | Angular HUD plate with the viewer's Twitch-style name colour, an avatar tile, and the role as the headline. A short "Casting director is picking a role" progress bar resolves into the card. The colour shows the tier (cyan, violet, gold, grey). Big type for phone viewers. |
 | Pacing | At most one card per 8 seconds per channel. Cards queue, nobody is skipped. At most 40 cast per episode. |
 | Credits | `!credits` (broadcaster or mod): AI episode title ("Episode 3: The One Where ..." with a fixed fallback), Starring (regulars first), Special Guest Stars, Background Extras, Directed by, Casting by. About 45 seconds. |
-| Streamer tools | `/setup.html` (overlay URL, OBS steps, paste-able chat notice) and a password-protected `/control.html` (test card, roll credits, pause, resume, new episode, uncast). |
+| Streamer tools | `/setup.html` is a guided four-step flow with a live preview of the real card, a working test-card button, and a troubleshooting section. `/control.html` is a password-protected control room: a casting on/off switch, roll credits (with a countdown), new episode, test card, and the cast grouped by tier. Destructive actions ask you to tap twice instead of using pop-ups. |
 | Chat reading | Twitch EventSub over WebSocket, with `session_reconnect` migration, keepalive watchdog and backoff. Optional anonymous IRC fallback (`CHAT_SOURCE=irc`). |
 | Sharing | `npm run tunnel` wraps a free Cloudflare quick tunnel so a streamer's OBS can load an overlay served from your laptop. |
 

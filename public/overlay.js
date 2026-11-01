@@ -6,7 +6,7 @@
   var stage = document.getElementById('stage');
   var statusEl = document.getElementById('status');
   var statusText = document.getElementById('status-text');
-  var TYPING_MS = 1500;   // how long "Casting director is typing" shows before the card is revealed
+  var TYPING_MS = CardView.TYPING_MS; // how long the casting bar shows before the card is revealed
   var HOLD_MS = 7000;   // card stays on screen
   var EXIT_MS = 650;
   var STING_VOLUME = 0.4;
@@ -72,38 +72,16 @@
   var timers = new Map(); // card -> pending reveal timer
   var queue = OverlayCore.createCardQueue({
     show: function (c) {
-      var m = OverlayCore.cardModel(c);
-      var node = el('div', 'card casting ' + m.className);
-      node.style.setProperty('--name-color', m.color);
+      var node;
       try {
-        var typing = el('div', 'typing');
-        var dots = el('span', 'dots');
-        dots.appendChild(el('i')); dots.appendChild(el('i')); dots.appendChild(el('i'));
-        typing.appendChild(dots);
-        typing.appendChild(el('span', '', 'Casting director is typing'));
-        node.appendChild(typing);
-
-        var shell = el('div', 'shell');
-        var avatar = el('div', 'avatar', m.initial);
-        avatar.appendChild(el('span', 'dot'));
-        shell.appendChild(avatar);
-        var col = el('div', 'who-col');
-        var head = el('div', 'head');
-        head.appendChild(el('span', 'name', m.who));
-        if (m.badge) head.appendChild(el('span', 'badge', m.badge));
-        col.appendChild(head);
-        col.appendChild(el('div', 'verb', m.verb));
-        shell.appendChild(col);
-        shell.appendChild(el('div', 'chip', m.role));
-        if (m.logline) shell.appendChild(el('div', 'logline', m.logline));
-        node.appendChild(shell);
+        node = CardView.build(c);
         stage.appendChild(node);
-      } catch (err) { node.remove(); throw err; }
+      } catch (err) { if (node) node.remove(); throw err; }
       nodes.set(c, node);
       requestAnimationFrame(function () { requestAnimationFrame(function () { node.classList.add('in'); }); });
       timers.set(c, setTimeout(function () {
         if (!nodes.has(c)) return; // removed before the reveal: no sting, no flash
-        node.classList.remove('casting');
+        CardView.reveal(node);
         playSting();
       }, TYPING_MS));
     },
@@ -178,9 +156,9 @@
     if (themeMaster) { try { themeMaster.disconnect(); } catch (_) { /* already gone */ } themeMaster = null; }
   }
 
-  // One credits row: avatar tile, Twitch-coloured name, and the role as a chip.
-  function member(parent, p, kindClass) {
-    var row = el('div', 'row ' + kindClass);
+  // One credits row: avatar tile ringed in the member's rarity colour, name, and role.
+  function member(parent, p, tier) {
+    var row = el('div', 'row tier-' + tier);
     row.style.setProperty('--name-color', OverlayCore.nameColor(p.user));
     row.appendChild(el('div', 'av', OverlayCore.initialOf(p.user)));
     row.appendChild(el('span', 'nm', p.user));
@@ -189,11 +167,11 @@
     parent.appendChild(row);
   }
 
-  function section(parent, channelName, list, kindClass) {
+  function section(parent, heading, list, boxClass, tierFor) {
     if (!list.length) return;
-    parent.appendChild(el('div', 'chan', channelName));
-    var box = el('div', kindClass);
-    list.forEach(function (p) { member(box, p, kindClass); });
+    parent.appendChild(el('div', 'chan', heading));
+    var box = el('div', boxClass);
+    list.forEach(function (p) { member(box, p, tierFor(p)); });
     parent.appendChild(box);
   }
 
@@ -207,12 +185,12 @@
     var scroll = el('div', 'scroll');
     scroll.style.animationDuration = m.scrollMs + 'ms';
     scroll.appendChild(el('div', 'ep', m.title));
-    section(scroll, 'starring', m.starring, 'stars');
-    section(scroll, 'special-guest-stars', m.guests, 'guests');
-    section(scroll, 'background-extras', m.extras, 'extras');
+    section(scroll, 'Starring', m.starring, 'stars', function (p) { return p.regular ? 'regular' : 'cast'; });
+    section(scroll, 'Special guest stars', m.guests, 'guests', function () { return 'guest'; });
+    section(scroll, 'Background extras', m.extras, 'extras', function () { return 'lurk'; });
     if (m.directedBy) {
-      scroll.appendChild(el('div', 'chan', 'directed-by'));
-      var dir = el('div', 'row stars');
+      scroll.appendChild(el('div', 'chan', 'Directed by'));
+      var dir = el('div', 'row tier-regular');
       dir.style.setProperty('--name-color', OverlayCore.nameColor(m.directedBy));
       dir.appendChild(el('div', 'av', OverlayCore.initialOf(m.directedBy)));
       dir.appendChild(el('span', 'nm', m.directedBy));
