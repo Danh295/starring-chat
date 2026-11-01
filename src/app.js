@@ -62,6 +62,11 @@ function createApp({ config, auth, log, hub, casting, credits, authLimiter = cre
     try { files = fs.readdirSync(artDir).filter((f) => /\.(png|jpe?g|webp|svg|gif)$/i.test(f)); } catch { /* no art dir */ }
     res.json({ files });
   });
+  // The bare address has nothing to show, so it sends people to the setup page (keeping a valid ?channel=).
+  app.get('/', (req, res) => {
+    const channel = String(req.query.channel || '').toLowerCase();
+    res.redirect(isValidChannel(channel) ? `/setup.html?channel=${channel}` : '/setup.html');
+  });
   app.get('/health', (_req, res) => res.json({ ok: true }));
   app.use(express.static(path.join(__dirname, '..', 'public')));
   return app;

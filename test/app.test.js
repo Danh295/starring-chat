@@ -28,3 +28,15 @@ test('overlay page is served', async () => {
     assert.match(await res.text(), /Starring: Chat/);
   });
 });
+
+test('the bare address sends people to the setup page, keeping a ?channel= they came with', async () => {
+  await withServer(async (base) => {
+    const plain = await fetch(`${base}/`, { redirect: 'manual' });
+    assert.strictEqual(plain.status, 302);
+    assert.strictEqual(plain.headers.get('location'), '/setup.html');
+    const withChannel = await fetch(`${base}/?channel=pixelbean`, { redirect: 'manual' });
+    assert.strictEqual(withChannel.headers.get('location'), '/setup.html?channel=pixelbean');
+    const junk = await fetch(`${base}/?channel=%3Cscript%3E`, { redirect: 'manual' });
+    assert.strictEqual(junk.headers.get('location'), '/setup.html', 'an invalid channel is dropped, not echoed');
+  });
+});
