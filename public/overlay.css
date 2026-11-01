@@ -1,80 +1,29 @@
+/* Starring: Chat overlay. Card colour = rarity, like a game party roster:
+   cyan = first-time chatter, violet = Series Regular, gold = raid guest, grey = lurker. */
 :root {
-  --void: #0e0e10;
-  --panel: #18181f;
-  --raised: #232330;
-  --line: #34344a;
-  --text: #efeff5;
-  --dim: #a0a3bc;
-  --violet: #9146ff;
-  --violet-hi: #a970ff;
-  --gold: #ffc83d;
-  --slate: #7b7f96;
-  --live: #23c55e;
+  --void: #0e0e10; --ink: #12121a; --line: #34344a;
+  --text: #efeff5; --dim: #a0a3bc;
+  --t-cast: #4cc9f0; --t-regular: #9146ff; --t-guest: #ffc83d; --t-lurk: #8b90a7;
+  --live: #23c55e; --violet-hi: #a970ff;
   --display: 'Chakra Petch', 'Arial Narrow', Impact, sans-serif;
   --body: 'DM Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
 }
 html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: transparent; font-family: var(--body); color: var(--text); }
 
-/* connection chip (fades out a few seconds after connecting) */
-#status { position: fixed; left: 24px; top: 24px; display: flex; align-items: center; gap: 10px; padding: 8px 14px; background: var(--panel); border: 1px solid var(--line);
+#status { position: fixed; left: 24px; top: 24px; display: flex; align-items: center; gap: 10px; padding: 8px 14px; background: var(--ink); border: 1px solid var(--line);
   border-radius: 999px; font-size: 20px; font-weight: 500; transition: opacity .6s; }
 #status.hidden { opacity: 0; }
 .live-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--live); box-shadow: 0 0 10px var(--live); }
 
 #stage { position: fixed; left: 40px; bottom: 40px; width: 580px; }
 
-/* ---- a cast card: a Discord-style member join, coloured like Twitch chat ---------------- */
-.card { --accent: var(--violet); --glow: rgba(145,70,255,.55); --status: var(--violet-hi); position: relative; width: 560px;
-  transform: translateY(28px) scale(.97); opacity: 0; transition: transform .45s cubic-bezier(.2,.9,.25,1.1), opacity .3s ease; }
-.card.in { transform: none; opacity: 1; }
-.card.guest { --accent: var(--gold); --glow: rgba(255,200,61,.5); --status: var(--gold); }
-.card.lurk { --accent: var(--slate); --glow: rgba(123,127,150,.3); --status: #f0b232; }
-.card.lurk.in { opacity: .8; }
-
-.shell { position: relative; overflow: hidden; display: grid; grid-template-columns: 76px 1fr; column-gap: 18px; row-gap: 10px; padding: 18px 22px 20px 18px;
-  background: rgba(24,24,31,.96); border: 1px solid var(--line); border-left: 6px solid var(--accent); border-radius: 12px;
-  box-shadow: 0 16px 44px rgba(0,0,0,.6), 0 0 38px -8px var(--glow); }
-.card.casting .shell { display: none; }
-.card:not(.casting) .shell { animation: pop .42s cubic-bezier(.2,1.3,.4,1) both; }
-.card:not(.casting) .shell::after { content: ''; position: absolute; inset: 0; pointer-events: none;
-  background: linear-gradient(105deg, transparent 35%, rgba(255,255,255,.16) 50%, transparent 65%); transform: translateX(-120%); animation: sweep .9s .1s ease-out both; }
-@keyframes pop { from { transform: scale(.94); opacity: 0; } to { transform: none; opacity: 1; } }
-@keyframes sweep { to { transform: translateX(120%); } }
-
-.avatar { position: relative; width: 76px; height: 76px; border-radius: 18px; display: grid; place-items: center; background: var(--name-color);
-  color: #0e0e10; font: 700 40px/1 var(--display); }
-.avatar .dot { position: absolute; right: -7px; bottom: -7px; width: 24px; height: 24px; border-radius: 50%; background: var(--status); border: 5px solid #18181f; }
-.card.lurk .avatar { filter: saturate(.5); }
-
-.who-col { min-width: 0; align-self: center; }
-.head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.name { font: 700 34px/1.1 var(--display); color: var(--name-color); word-break: break-word; }
-.badge { display: inline-flex; align-items: center; gap: 6px; padding: 3px 12px 3px 8px; border-radius: 6px; background: var(--violet); color: #fff; font: 600 19px/1.2 var(--display); }
-.badge::before { content: ''; width: 14px; height: 14px; background: #fff; clip-path: polygon(50% 0, 62% 36%, 100% 38%, 70% 60%, 80% 100%, 50% 76%, 20% 100%, 30% 60%, 0 38%, 38% 36%); }
-.verb { margin-top: 4px; font-size: 22px; color: var(--dim); }
-.verb b { color: var(--text); font-weight: 700; }
-
-.chip { grid-column: 1 / -1; justify-self: start; max-width: 100%; display: inline-flex; align-items: center; gap: 14px; padding: 8px 20px 8px 16px; border-radius: 10px;
-  background: color-mix(in srgb, var(--accent) 24%, #18181f); border: 1px solid color-mix(in srgb, var(--accent) 65%, transparent);
-  font: 700 40px/1.12 var(--display); color: var(--text); word-break: break-word; text-shadow: 0 2px 0 rgba(0,0,0,.45); }
-.chip::before { content: ''; flex: none; width: 16px; height: 16px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 12px var(--accent); }
-.logline { grid-column: 1 / -1; font-size: 26px; line-height: 1.3; color: #d9dbea; }
-
-/* ---- the moment: "casting director is typing..." resolves into the card ---------------- */
-.typing { display: none; align-items: center; gap: 16px; width: max-content; max-width: 100%; padding: 16px 26px; background: var(--panel); border: 1px solid var(--line);
-  border-radius: 999px; font-size: 26px; color: var(--dim); box-shadow: 0 10px 30px rgba(0,0,0,.5); }
-.card.casting .typing { display: inline-flex; }
-.typing .dots { display: inline-flex; gap: 7px; }
-.typing .dots i { width: 11px; height: 11px; border-radius: 50%; background: var(--violet-hi); animation: bounce 1s infinite ease-in-out; }
-.typing .dots i:nth-child(2) { animation-delay: .15s; } .typing .dots i:nth-child(3) { animation-delay: .3s; }
-@keyframes bounce { 0%, 60%, 100% { transform: translateY(0); opacity: .45; } 30% { transform: translateY(-8px); opacity: 1; } }
-
-/* ---- optional hand-drawn art (public/art/*.png), switched on by overlay.js ------------- */
-body.has-frame-art .shell { background: var(--frame-art) center / 100% 100% no-repeat, rgba(24,24,31,.96); }
-body.has-stamp-art .shell::before { content: ''; position: absolute; right: 14px; top: 12px; width: 60px; height: 60px; background: var(--stamp-art) center / contain no-repeat; opacity: .9; }
+/* ---- optional hand-drawn art (public/art/*.png) ---------------------------------------------- */
+body.has-frame-art .shell { background: var(--frame-art) center / 100% 100% no-repeat, var(--ink); }
+body.has-stamp-art .shell::before { content: ''; position: absolute; right: 14px; bottom: 12px; width: 60px; height: 60px; background: var(--stamp-art) center / contain no-repeat; opacity: .9; }
 body.has-bg-art #stage::before { content: ''; position: absolute; inset: -30px -30px -30px -50px; background: var(--bg-art) center / cover no-repeat; opacity: .35; z-index: -1; }
 
-/* ---- end credits: a channel log --------------------------------------------------------- */
+
+/* ---- end credits ------------------------------------------------------------------------------ */
 #credits { position: fixed; inset: 0; overflow: hidden; opacity: 0; pointer-events: none; transition: opacity 1.2s ease; z-index: 10;
   background:
     radial-gradient(900px 420px at 50% -80px, rgba(145,70,255,.35), transparent 70%),
@@ -85,33 +34,28 @@ body.has-bg-art #stage::before { content: ''; position: absolute; inset: -30px -
 #credits .scroll { position: absolute; left: 50%; top: 0; width: 880px; margin-left: -440px; padding-bottom: 40vh; transform: translateY(100vh); animation: roll 45s linear forwards; }
 @keyframes roll { from { transform: translateY(100vh); } to { transform: translateY(-100%); } }
 
-#credits .ep { margin: 0 0 70px; font: 700 62px/1.1 var(--display); letter-spacing: .01em; color: var(--text); text-shadow: 0 0 40px rgba(145,70,255,.7); }
-#credits .chan { display: flex; align-items: center; gap: 14px; margin: 64px 0 22px; font: 600 32px/1 var(--display); color: var(--violet-hi); }
-#credits .chan::before { content: '#'; color: var(--slate); font-weight: 500; }
-#credits .chan::after { content: ''; flex: 1; height: 1px; background: var(--line); }
-#credits .row { display: flex; align-items: center; gap: 18px; padding: 8px 0; }
-#credits .av { flex: none; position: relative; width: 56px; height: 56px; border-radius: 14px; display: grid; place-items: center; background: var(--name-color); color: #0e0e10; font: 700 30px/1 var(--display); }
-#credits .av::after { content: ''; position: absolute; right: -5px; bottom: -5px; width: 18px; height: 18px; border-radius: 50%; background: var(--violet-hi); border: 4px solid var(--void); }
+#credits .ep { margin: 0 0 70px; font: 700 62px/1.1 var(--display); color: var(--text); text-shadow: 0 0 40px rgba(145,70,255,.7); }
+#credits .chan { display: flex; align-items: center; gap: 14px; margin: 64px 0 20px; font: 600 30px/1 var(--display); color: var(--text); }
+#credits .chan::before { content: ''; flex: none; width: 13px; height: 13px; background: var(--violet-hi); transform: rotate(45deg); box-shadow: 0 0 12px var(--violet-hi); }
+#credits .chan::after { content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, var(--line), transparent); }
+#credits .row { --tier: var(--t-cast); display: flex; align-items: center; gap: 18px; padding: 9px 0; }
+#credits .row.tier-regular { --tier: var(--t-regular); } #credits .row.tier-guest { --tier: var(--t-guest); } #credits .row.tier-lurk { --tier: var(--t-lurk); }
+#credits .av { flex: none; width: 56px; height: 56px; border-radius: 14px; display: grid; place-items: center; background: var(--name-color); color: #0e0e10;
+  font: 700 30px/1 var(--display); box-shadow: 0 0 0 3px var(--void), 0 0 0 5px var(--tier); }
 #credits .nm { font: 700 38px/1.1 var(--display); color: var(--name-color); }
-#credits .rl { margin-left: auto; padding: 6px 16px; border-radius: 8px; background: rgba(145,70,255,.2); border: 1px solid rgba(145,70,255,.55); font: 600 28px/1.1 var(--display); color: var(--text); }
-#credits .star { color: var(--gold); font-size: 28px; }
-#credits .guests .av::after { background: var(--gold); }
-#credits .guests .rl { background: rgba(255,200,61,.16); border-color: rgba(255,200,61,.6); }
-#credits .extras .av { filter: saturate(.5); opacity: .85; }
-#credits .extras .av::after { background: #f0b232; }
-#credits .extras .nm { font-size: 30px; }
-#credits .extras .rl { font-size: 23px; background: rgba(123,127,150,.18); border-color: rgba(123,127,150,.5); }
-#credits .extras .av { width: 46px; height: 46px; font-size: 24px; border-radius: 12px; }
+#credits .star { color: var(--t-guest); font-size: 28px; }
+#credits .rl { margin-left: auto; padding: 5px 16px 5px 12px; border-left: 4px solid var(--tier); background: color-mix(in srgb, var(--tier) 16%, transparent); font: 600 27px/1.15 var(--display); color: var(--text); }
+#credits .row.tier-lurk .av { filter: saturate(.45); }
+#credits .extras .nm { font-size: 30px; } #credits .extras .rl { font-size: 22px; } #credits .extras .av { width: 46px; height: 46px; font-size: 24px; }
 #credits .logo { display: flex; align-items: center; gap: 16px; margin-top: 110px; font: 600 36px/1 var(--display); color: var(--dim); }
-#credits .logo .mark { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 16px; background: var(--violet); color: #fff; font: 700 28px/1 var(--display); }
+#credits .logo .mark { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 16px; background: var(--t-regular); color: #fff; font: 700 28px/1 var(--display); }
 #credits .logo b { color: var(--text); }
 #credits.compact .ep { font-size: 48px; margin-bottom: 40px; }
-#credits.compact .chan { margin: 36px 0 12px; font-size: 26px; }
+#credits.compact .chan { margin: 36px 0 12px; font-size: 25px; }
 #credits.compact .row { padding: 3px 0; gap: 14px; }
-#credits.compact .av { width: 38px; height: 38px; font-size: 20px; border-radius: 10px; }
-#credits.compact .av::after { width: 12px; height: 12px; border-width: 3px; right: -4px; bottom: -4px; }
+#credits.compact .av { width: 38px; height: 38px; font-size: 20px; border-radius: 10px; box-shadow: 0 0 0 2px var(--void), 0 0 0 4px var(--tier); }
 #credits.compact .nm { font-size: 26px; }
-#credits.compact .rl { font-size: 20px; padding: 3px 12px; }
+#credits.compact .rl { font-size: 20px; padding: 3px 12px 3px 10px; }
 
 /* ?preview=1: a dark, busy stand-in for gameplay, so the overlay can be previewed outside OBS */
 body.preview { background:
@@ -119,4 +63,4 @@ body.preview { background:
   radial-gradient(500px 260px at 25% 55%, rgba(255,90,120,.25), transparent 70%),
   linear-gradient(135deg, #0c1a2b 0%, #1b2d1f 50%, #2a1a35 100%); }
 
-@media (prefers-reduced-motion: reduce) { .card { transition: opacity .2s; transform: none; } .typing .dots i, .card:not(.casting) .shell, .card:not(.casting) .shell::after { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .card { transition: opacity .2s; transform: none; } .hud-bar i, .card:not(.casting) .frame, .card:not(.casting) .shell::after { animation: none; } .hud-bar i { width: 100%; } }

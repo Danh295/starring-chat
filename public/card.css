@@ -1,0 +1,44 @@
+/* The cast card (shared by the OBS overlay and the setup page preview). Colour = rarity tier. */
+/* ---- the card ------------------------------------------------------------------------------ */
+.card { --card-cut: 24px; --tier: var(--t-cast); position: relative; width: 560px; filter: drop-shadow(0 0 16px color-mix(in srgb, var(--tier) 55%, transparent));
+  transform: translateX(-40px); opacity: 0; transition: transform .45s cubic-bezier(.2,.9,.25,1.05), opacity .3s ease; }
+.card.in { transform: none; opacity: 1; }
+.card.tier-regular { --tier: var(--t-regular); }
+.card.tier-guest { --tier: var(--t-guest); }
+.card.tier-lurk { --tier: var(--t-lurk); filter: drop-shadow(0 0 10px color-mix(in srgb, var(--tier) 35%, transparent)) saturate(.85); }
+.card.tier-lurk.in { opacity: .82; }
+
+/* angular HUD plate: two corners cut, a bright edge drawn by the padding of .frame */
+.frame, .hud { clip-path: polygon(var(--card-cut) 0, 100% 0, 100% calc(100% - var(--card-cut)), calc(100% - var(--card-cut)) 100%, 0 100%, 0 var(--card-cut)); }
+.frame { padding: 2px; background: linear-gradient(135deg, var(--tier) 0%, color-mix(in srgb, var(--tier) 22%, var(--void)) 55%, var(--tier) 100%); }
+.shell { clip-path: polygon(var(--card-cut) 0, 100% 0, 100% calc(100% - var(--card-cut)), calc(100% - var(--card-cut)) 100%, 0 100%, 0 var(--card-cut));
+  padding: 20px 26px 24px 22px; background: radial-gradient(420px 130px at 0 0, color-mix(in srgb, var(--tier) 22%, transparent), transparent), var(--ink); }
+
+.top { display: flex; align-items: center; gap: 16px; }
+.tile { flex: none; width: 64px; height: 64px; border-radius: 14px; display: grid; place-items: center; background: var(--name-color); color: #0e0e10;
+  font: 700 34px/1 var(--display); box-shadow: 0 0 0 3px var(--ink), 0 0 0 5px var(--tier); }
+.card.tier-lurk .tile { filter: saturate(.45); }
+.id { flex: 1; min-width: 0; }
+.name { font: 700 32px/1.1 var(--display); color: var(--name-color); word-break: break-word; }
+.verb { margin-top: 3px; font-size: 21px; color: var(--dim); }
+.tag { align-self: flex-start; display: flex; align-items: center; gap: 9px; font: 600 19px/1.2 var(--display); color: var(--tier); text-align: right; }
+.tag::before { content: ''; flex: none; width: 11px; height: 11px; background: var(--tier); transform: rotate(45deg); box-shadow: 0 0 10px var(--tier); }
+
+.role { margin-top: 16px; padding-left: 16px; border-left: 6px solid var(--tier); font: 700 46px/1.06 var(--display); color: #fff; word-break: break-word;
+  text-shadow: 0 0 24px color-mix(in srgb, var(--tier) 60%, transparent), 0 3px 0 rgba(0,0,0,.4); }
+.logline { margin-top: 10px; padding-left: 22px; font-size: 25px; line-height: 1.3; color: #d9dbea; }
+
+/* ---- the moment: a short "casting" progress bar, then the plate snaps in with a flash ------- */
+.hud { display: none; width: 470px; padding: 18px 26px 22px; background: var(--ink); border: 0; box-shadow: inset 0 0 0 2px var(--line); }
+.card.casting .hud { display: block; }
+.card.casting .frame { display: none; }
+.hud-text { font: 600 24px/1.2 var(--display); color: var(--dim); }
+.hud-bar { height: 8px; margin-top: 14px; border-radius: 4px; background: #262636; overflow: hidden; }
+.hud-bar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--t-regular), var(--t-cast)); animation: fill 1.5s linear forwards; }
+@keyframes fill { to { width: 100%; } }
+.card:not(.casting) .frame { animation: snap .4s cubic-bezier(.2,1.5,.4,1) both; }
+.card:not(.casting) .shell { position: relative; }
+.card:not(.casting) .shell::after { content: ''; position: absolute; inset: 0; background: #fff; opacity: 0; animation: flash .45s ease-out; pointer-events: none; }
+@keyframes snap { from { transform: scale(.9); } to { transform: none; } }
+@keyframes flash { 0% { opacity: .55; } 100% { opacity: 0; } }
+

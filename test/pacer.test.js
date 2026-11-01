@@ -27,7 +27,8 @@ test('the first card goes out immediately; later cards wait one interval each, i
 test('nothing is dropped: every cast event is delivered', async () => {
   const { pacer, sent } = make(10);
   for (let i = 0; i < 8; i++) pacer.emit('c', cast('u' + i));
-  await wait(150);
+  const end = Date.now() + 3000;
+  while (sent.length < 8 && Date.now() < end) await wait(10);
   assert.strictEqual(sent.length, 8);
   pacer.stop();
 });

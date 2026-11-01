@@ -8,71 +8,105 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@500&display=swap">
 <link rel="stylesheet" href="pages.css">
+<link rel="stylesheet" href="card.css">
 </head>
 <body>
-<div class="app">
-  <div class="rail"><a class="tile" href="setup.html" aria-label="Starring: Chat setup">SC</a><a class="tile quiet" href="control.html" id="controlTile" aria-label="Control room" title="Control room">&#9881;</a></div>
-  <aside class="side">
-    <h1>Starring: Chat</h1>
-    <nav aria-label="Setup sections">
-      <a href="#channel" class="on">your-channel</a>
-      <a href="#obs">add-to-obs</a>
-      <a href="#chat-notice">tell-chat</a>
-      <a href="#commands">chat-commands</a>
-    </nav>
-    <div class="userbar online"><span class="av">SC</span><div><b>Overlay server</b><small>Online</small></div></div>
-  </aside>
-  <main>
-    <div class="topbar"><h2>setup</h2></div>
-    <div class="content">
-      <p class="lead">Turn your chat into the cast of a sitcom. It takes about two minutes and there is nothing to download.</p>
+<header class="bar">
+  <a class="brand" href="setup.html"><span class="mark">SC</span>Starring: Chat</a>
+  <nav class="sp" aria-label="Pages"><a href="setup.html" aria-current="page">Setup</a><a href="control.html" id="toControl">Control room</a></nav>
+</header>
 
-      <h3 id="channel"><span class="hash">#</span>your-channel</h3>
-      <section class="panel" aria-labelledby="channel">
+<main class="wrap">
+  <h1>Turn your chat into a cast</h1>
+  <p class="lead">Every new chatter gets a role on stream, like a character in a sitcom. Setup takes about two minutes and there is nothing to download.</p>
+
+  <div class="stage" id="stage" aria-live="polite"></div>
+  <div class="legend" id="legend" role="group" aria-label="Card types">
+    <button type="button" data-tier="cast" aria-pressed="true"><div><b>First message</b><span>Cyan card for a chatter's first message</span></div></button>
+    <button type="button" data-tier="regular" aria-pressed="false"><div><b>Series regular</b><span>Violet card once they have come back 3 times</span></div></button>
+    <button type="button" data-tier="guest" aria-pressed="false"><div><b>Raid guest</b><span>Gold card for someone who raids you</span></div></button>
+    <button type="button" data-tier="lurk" aria-pressed="false"><div><b>Lurker</b><span>Grey card when they type !lurk</span></div></button>
+  </div>
+
+  <ol class="steps">
+    <li class="step" id="s1" data-state="active">
+      <span class="n">1</span>
+      <h2>Your channel</h2>
+      <p>Type the name of your Twitch channel.</p>
+      <div class="body">
         <label for="channel-input">Twitch channel name</label>
-        <div class="row">
-          <input id="channel-input" type="text" inputmode="text" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="pixelbean">
-          <button id="make" type="button">Get my overlay URL</button>
+        <input id="channel-input" type="text" inputmode="text" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="pixelbean" aria-describedby="channel-msg">
+        <p id="channel-msg" class="field-msg" role="status"></p>
+      </div>
+    </li>
+
+    <li class="step" id="s2" data-state="locked" inert>
+      <span class="n">2</span>
+      <h2>Add it to OBS</h2>
+      <p>Copy your overlay link, then add it as a Browser source.</p>
+      <div class="body">
+        <div id="url" class="code" tabindex="0" aria-label="Your overlay URL"></div>
+        <button id="copy" type="button">Copy link</button>
+        <div class="settings" aria-label="Browser source settings">
+          <span class="s">Width <b>1920</b></span><span class="s">Height <b>1080</b></span><span class="s">Tick <b>Control audio via OBS</b></span>
         </div>
-        <p id="err" class="status err" role="alert"></p>
-        <div id="result" class="hidden">
-          <label for="url">Overlay URL</label>
-          <div id="url" class="code"></div>
-          <button id="copy" type="button">Copy URL</button>
-          <span id="copied" class="status ok" role="status"></span>
-        </div>
-      </section>
+        <p class="hint">In OBS, under Sources select <b>+</b>, choose <b>Browser</b>, paste the link, set those three things, and select OK. Streamlabs works the same way.</p>
+      </div>
+    </li>
 
-      <h3 id="obs"><span class="hash">#</span>add-to-obs</h3>
-      <ol class="steps">
-        <li>In your scene, select <b>+</b> under Sources and choose <b>Browser</b> (Streamlabs: <b>Browser Source</b>).</li>
-        <li>Paste your overlay URL. Set <b>Width 1920</b> and <b>Height 1080</b>, and tick <b>Control audio via OBS</b> so the sting plays through your mix.</li>
-        <li>Select OK, then type in your own chat. Your first message gets a role card in the bottom left. Delete the source to turn it off.</li>
-      </ol>
-      <p class="hint">Cards come one at a time and leave after a few seconds, so they never cover your game for long.</p>
+    <li class="step" id="s3" data-state="locked" inert>
+      <span class="n">3</span>
+      <h2>See it work</h2>
+      <p>Send yourself a test card to check the overlay is showing.</p>
+      <div class="body">
+        <button id="test" type="button">Send a test card</button>
+        <div id="test-result" class="result" role="status"></div>
+      </div>
+    </li>
 
-      <h3 id="chat-notice"><span class="hash">#</span>tell-chat</h3>
-      <section class="panel" aria-labelledby="chat-notice">
-        <p class="hint" style="margin-top:0">Paste this into chat once. It has no links, so link filters leave it alone.</p>
-        <div id="notice" class="code"></div>
-        <button id="copyNotice" type="button" class="secondary">Copy chat message</button>
-        <span id="copiedNotice" class="status ok" role="status"></span>
-      </section>
+    <li class="step" id="s4" data-state="locked" inert>
+      <span class="n">4</span>
+      <h2>Tell your chat</h2>
+      <p>Paste this into chat once so viewers know what the cards are. It has no links, so link filters leave it alone.</p>
+      <div class="body">
+        <div id="notice" class="code prose" tabindex="0" aria-label="Chat message to paste"></div>
+        <button id="copyNotice" type="button" class="secondary">Copy message</button>
+      </div>
+    </li>
+  </ol>
 
-      <h3 id="commands"><span class="hash">#</span>chat-commands</h3>
-      <section class="panel">
-        <ul class="cmds">
-          <li><code>!lurk</code><span>Anyone can become a Background Extra.</span></li>
-          <li><code>!nocast</code><span>Anyone can opt out. Their card is removed and they are never cast again.</span></li>
-          <li><code>!credits</code><span>You or a mod roll the end credits (about 45 seconds).</span></li>
-          <li><code>!newepisode</code><span>You or a mod start a fresh episode with a clean cast.</span></li>
-          <li><code>!uncast @name</code><span>You or a mod remove someone from tonight's cast.</span></li>
-        </ul>
-      </section>
-      <p class="hint">Prefer buttons? Open the <a href="control.html" id="controlLink">control room</a>. It needs your <code>CONTROL_PASSWORD</code>.</p>
+  <details>
+    <summary>Chat commands</summary>
+    <div class="in">
+      <dl class="cmds">
+        <dt><code>!lurk</code></dt><dd>Anyone: join as a Background Extra.</dd>
+        <dt><code>!nocast</code></dt><dd>Anyone: opt out. Their card is removed and they are never cast again.</dd>
+        <dt><code>!credits</code></dt><dd>You or a mod: roll the end credits (about 45 seconds).</dd>
+        <dt><code>!newepisode</code></dt><dd>You or a mod: start a fresh episode with a clean cast.</dd>
+        <dt><code>!uncast @name</code></dt><dd>You or a mod: remove someone from tonight's cast.</dd>
+      </dl>
     </div>
-  </main>
-</div>
+  </details>
+
+  <details>
+    <summary>Something is not working</summary>
+    <div class="in">
+      <dl class="trouble">
+        <dt>The test card did not appear in OBS</dt>
+        <dd>Check the link is pasted exactly, the Browser source is visible in your scene, and the channel name is spelled like your Twitch name.</dd>
+        <dt>Cards show but there is no sound</dt>
+        <dd>Tick <b>Control audio via OBS</b> on the Browser source, then check it is not muted in the audio mixer.</dd>
+        <dt>Viewers are not getting cards</dt>
+        <dd>The server must be running and connected to your chat. Open the control room to see whether casting is on.</dd>
+        <dt>I want to turn it off</dt>
+        <dd>Hide or delete the Browser source, or pause casting in the control room.</dd>
+      </dl>
+    </div>
+  </details>
+</main>
+
+<script src="overlay-core.js"></script>
+<script src="card-view.js"></script>
 <script src="setup-core.js"></script>
 <script src="setup.js"></script>
 </body>
