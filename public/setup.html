@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Starring: Chat setup</title>
+<meta name="description" content="Set up Starring: Chat in about two minutes. Add the overlay to OBS and your chat becomes the cast of a sitcom.">
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chivo+Mono:wght@400;500;800&display=swap">
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="base.css">
+<link rel="stylesheet" href="card.css">
+<link rel="stylesheet" href="pages.css">
+</head>
+<body>
+<header class="bar">
+  <div class="bar-in">
+    <a class="brand" href="setup.html">Starring: Chat</a>
+    <nav aria-label="Pages"><a href="setup.html" aria-current="page">Setup</a><a href="control.html" id="toControl">Control room</a></nav>
+  </div>
+</header>
+
+<main class="page">
+  <p class="sr" id="live" role="status" aria-live="polite"></p>
+  <h1>Turn your chat into a cast</h1>
+  <p class="intro">Every new chatter gets a role on stream, like a character in a sitcom. Setup takes about two minutes and there is nothing to download.</p>
+
+  <section class="preview" aria-labelledby="preview-h">
+    <h2 id="preview-h">What your viewers see</h2>
+    <div class="stage" id="stage"></div>
+    <fieldset class="seg">
+      <legend>Card type</legend>
+      <input type="radio" name="tier" id="t-cast" value="cast" checked><label for="t-cast">Starring</label>
+      <input type="radio" name="tier" id="t-regular" value="regular"><label for="t-regular">Series regular</label>
+      <input type="radio" name="tier" id="t-guest" value="guest"><label for="t-guest">Special guest star</label>
+      <input type="radio" name="tier" id="t-lurk" value="lurk"><label for="t-lurk">Background extra</label>
+    </fieldset>
+    <p class="caption" id="caption"></p>
+  </section>
+
+  <ol class="route">
+    <li class="stop" id="s1" data-state="current" aria-current="step">
+      <h2>1. Your channel<span class="sr state-note"></span></h2>
+      <p>Type the name of your Twitch channel.</p>
+      <div class="plate-body">
+        <label for="channel-input">Twitch channel name</label>
+        <input id="channel-input" type="text" inputmode="text" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="pixelbean" aria-describedby="channel-msg">
+        <p id="channel-msg" class="field-msg" role="status"></p>
+      </div>
+    </li>
+
+    <li class="stop" id="s2" data-state="locked" inert>
+      <h2>2. Add it to OBS<span class="sr state-note"></span></h2>
+      <p>Copy your overlay link and add it as a Browser source.</p>
+      <p class="lock-note">Do step 1 first: type your channel name.</p>
+      <div class="plate-body">
+        <div id="url" class="readout" tabindex="0" role="textbox" aria-readonly="true" aria-label="Your overlay link"></div>
+        <button id="copy" type="button">Copy link</button>
+        <dl class="signs" aria-label="Browser source settings">
+          <div><dt>Width</dt><dd>1920</dd></div>
+          <div><dt>Height</dt><dd>1080</dd></div>
+          <div><dt>Control audio via OBS</dt><dd>Tick</dd></div>
+        </dl>
+        <p class="hint">In OBS, under Sources select <b>+</b>, choose <b>Browser</b>, paste the link, set those three things, and select OK. Streamlabs works the same way.</p>
+      </div>
+    </li>
+
+    <li class="stop" id="s3" data-state="locked" inert>
+      <h2>3. See it work<span class="sr state-note"></span></h2>
+      <p>Send yourself a test card to check the overlay is showing.</p>
+      <p class="lock-note">Do step 1 first: type your channel name.</p>
+      <div class="plate-body">
+        <button id="test" type="button">Send a test card</button>
+        <p id="test-result" class="result" role="status"></p>
+      </div>
+    </li>
+
+    <li class="stop" id="s4" data-state="locked" inert>
+      <h2>4. Tell your chat<span class="sr state-note"></span></h2>
+      <p>Paste this into chat once so viewers know what the cards are. It has no links, so link filters leave it alone.</p>
+      <p class="lock-note">Do step 1 first: type your channel name.</p>
+      <div class="plate-body">
+        <div id="notice" class="readout prose" tabindex="0" role="textbox" aria-readonly="true" aria-label="Message to paste into chat"></div>
+        <button id="copyNotice" type="button" class="secondary">Copy message</button>
+      </div>
+    </li>
+  </ol>
+
+  <details>
+    <summary>Chat commands</summary>
+    <table class="cmds">
+      <thead><tr><th scope="col">Type</th><th scope="col">Who</th><th scope="col">What happens</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">!lurk</th><td>Anyone</td><td>They join as a background extra.</td></tr>
+        <tr><th scope="row">!nocast</th><td>Anyone</td><td>They opt out. Their card is removed and they are never cast again.</td></tr>
+        <tr><th scope="row">!credits</th><td>You or a mod</td><td>The end credits roll for about 45 seconds.</td></tr>
+        <tr><th scope="row">!newepisode</th><td>You or a mod</td><td>A fresh episode starts with a clean cast.</td></tr>
+        <tr><th scope="row">!uncast @name</th><td>You or a mod</td><td>That person is removed from tonight’s cast.</td></tr>
+      </tbody>
+    </table>
+  </details>
+
+  <details>
+    <summary>Something is not working</summary>
+    <dl class="trouble">
+      <dt>The test card did not appear in OBS</dt>
+      <dd>Check the link is pasted exactly, the Browser source is visible in your scene, and the channel name is spelled like your Twitch name.</dd>
+      <dt>Cards show but there is no sound</dt>
+      <dd>Tick <b>Control audio via OBS</b> on the Browser source, then check it is not muted in the audio mixer.</dd>
+      <dt>Viewers are not getting cards</dt>
+      <dd>The server must be running and connected to your chat. Open the control room to see whether casting is on.</dd>
+      <dt>I want to turn it off</dt>
+      <dd>Hide or delete the Browser source, or pause casting in the control room.</dd>
+    </dl>
+  </details>
+</main>
+
+<script src="overlay-core.js"></script>
+<script src="card-view.js"></script>
+<script src="setup-core.js"></script>
+<script src="setup.js"></script>
+</body>
+</html>

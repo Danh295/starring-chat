@@ -1,0 +1,24 @@
+:root {
+  color-scheme: dark;
+  --space-3xs: 2px; --space-2xs: 4px; --space-xs: 8px; --space-sm: 12px; --space-md: 16px; --space-lg: 24px; --space-xl: 40px; --space-2xl: 64px; --space-3xl: 96px; --space-4xl: 144px;
+  --text-xs: 0.75rem; --text-sm: 0.875rem; --text-md: 1rem; --text-lg: 1.2rem; --text-xl: 1.44rem; --text-2xl: 1.728rem; --text-3xl: 2.074rem;
+  --text-display-s: 1.44rem; --text-display: 1.728rem; --text-section: 1.2rem; --text-title: 1rem; --text-lead: 1rem;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1); --ease-in: cubic-bezier(0.7, 0, 0.84, 0); --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-micro: 120ms; --dur-short: 220ms; --dur-long: 420ms;
+  --color-error: oklch(72% 0.17 27); --color-success: oklch(76% 0.14 152);
+  --container: 1440px; --gutter: 64px; --gap-columns: 32px; --section-gap-s: 120px; --section-gap: 144px; --section-gap-l: 176px;
+  --z-base: 1; --z-raised: 10; --z-dropdown: 100; --z-sticky: 200; --z-sticky-nav: 300; --z-modal: 400; --z-toast: 500; --z-tooltip: 600;
+  /* Wayfind, night colourway: signage on a dark ground. Twitch violet takes the place of cobalt as the one live signal. */
+  --color-paper: oklch(15% 0.012 262); --color-paper-2: oklch(19.5% 0.014 262); --color-paper-3: oklch(24% 0.016 262);
+  --color-ink: oklch(96% 0.005 250); --color-ink-2: oklch(86% 0.008 252); --color-muted: oklch(72% 0.014 258);
+  --color-rule: oklch(31% 0.014 262); --color-ink-rule: oklch(46% 0.014 262);
+  --color-accent: oklch(54% 0.25 293); --color-accent-2: oklch(81% 0.16 82); --color-accent-ink: oklch(99% 0.004 293); --color-accent-hover: oklch(60% 0.25 293); --color-accent-text: oklch(78% 0.14 293); --color-focus: oklch(82% 0.14 293);
+  /* the line colours: a cast member's tier, shown as a small square (and the card's line square), never as a fill or a gradient */
+  --tier-cast: oklch(80% 0.12 215); --tier-regular: oklch(68% 0.23 293); --tier-guest: oklch(81% 0.16 82); --tier-lurk: oklch(66% 0.02 260);
+  --color-void: oklch(11% 0.012 262);
+  --font-display: "Chivo Mono", ui-monospace, monospace; --font-body: var(--font-display); --font-outlier: var(--font-body);
+  --radius-card: 0; --radius-pill: 0; --rule-hair: 1px; --rule-bar: 2px;
+  --shadow-card: 0 24px 40px -24px oklch(6% 0.01 260 / 0.8);
+  --card-width: 35rem; --text-4xl: 2.488rem;
+  --tracking-display: -0.03em; --display-weight: 800;
+}
