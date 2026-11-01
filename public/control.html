@@ -3,39 +3,66 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Starring: Chat control</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bowlby+One&family=Nunito:wght@600;800&display=swap">
+<title>Starring: Chat control room</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=DM+Sans:wght@400;500;700&display=swap">
 <link rel="stylesheet" href="pages.css">
 </head>
 <body>
-<main>
-  <h1>Control room</h1>
-  <p class="lead">Run the show from here. Every button asks the server with your password.</p>
+<div class="app has-members">
+  <div class="rail"><a class="tile" href="setup.html" aria-label="Setup guide">SC</a></div>
+  <aside class="side">
+    <h1>Starring: Chat</h1>
+    <nav aria-label="Sections"><a href="#controls" class="on">control-room</a><a href="setup.html">setup-guide</a></nav>
+    <div class="userbar" id="userbar"><span class="av" id="userAv">?</span><div><b id="userName">Not connected</b><small id="userState">Enter your password</small></div></div>
+  </aside>
 
-  <section class="panel" id="login">
-    <div class="row">
-      <div style="flex:1 1 200px"><label for="chan">Channel</label><input id="chan" type="text" autocomplete="off" autocapitalize="none" spellcheck="false"></div>
-      <div style="flex:1 1 200px"><label for="pw">Control password</label><input id="pw" type="password" autocomplete="current-password"></div>
+  <main>
+    <div class="topbar"><h2>control-room</h2><span class="sp"></span>
+      <span class="pill hidden" id="epPill">Episode <span id="episode">-</span></span>
+      <span class="pill paused hidden" id="pausedPill">Casting paused</span>
     </div>
-    <p class="row" style="margin-top:12px"><button id="connect" type="button">Connect</button></p>
-  </section>
+    <div class="content">
+      <section class="panel" id="login" aria-labelledby="loginTitle">
+        <h3 id="loginTitle">Connect to a channel</h3>
+        <div class="row">
+          <div style="flex:1 1 200px"><label for="chan">Channel</label><input id="chan" type="text" autocomplete="off" autocapitalize="none" spellcheck="false"></div>
+          <div style="flex:1 1 200px"><label for="pw">Control password</label><input id="pw" type="password" autocomplete="current-password"></div>
+        </div>
+        <p style="margin:14px 0 0"><button id="connect" type="button">Connect</button></p>
+      </section>
 
-  <p id="msg" class="status" role="status" aria-live="polite"></p>
+      <p id="msg" class="status" role="status" aria-live="polite"></p>
 
-  <section id="panel" class="hidden">
-    <p>Episode <span class="pill" id="episode">-</span> <span class="pill paused hidden" id="pausedPill">casting paused</span></p>
-    <div class="grid">
-      <button id="testCard" type="button" class="secondary">Test card</button>
-      <button id="credits" type="button">Roll credits</button>
-      <button id="pause" type="button" class="secondary">Pause casting</button>
-      <button id="resume" type="button" class="secondary">Resume casting</button>
-      <button id="newEpisode" type="button" class="danger">New episode</button>
+      <section id="panel" class="hidden">
+        <h3 id="controls">Quick actions</h3>
+        <div class="actions">
+          <button id="testCard" type="button" class="secondary">Send test card</button>
+          <button id="credits" type="button">Roll credits</button>
+          <button id="pause" type="button" class="secondary">Pause casting</button>
+          <button id="resume" type="button" class="secondary">Resume casting</button>
+          <button id="newEpisode" type="button" class="danger">New episode</button>
+        </div>
+        <p class="hint" style="margin-top:14px">Uncast removes someone from this episode only. A new episode clears the block.</p>
+
+        <h3 id="overlay">Overlay URL</h3>
+        <section class="panel">
+          <p class="hint" style="margin-top:0">Paste this into an OBS Browser Source (1920x1080).</p>
+          <div id="overlayUrl" class="code"></div>
+          <button id="copyOverlay" type="button" class="secondary">Copy URL</button>
+          <span id="copiedOverlay" class="status ok" role="status"></span>
+        </section>
+      </section>
     </div>
-    <h2>Tonight's cast</h2>
-    <ul class="cast" id="cast"></ul>
-    <p class="hint" id="empty">Nobody has been cast yet.</p>
-  </section>
-</main>
+  </main>
+
+  <aside class="members" aria-label="Tonight's cast" id="members">
+    <div id="cast"></div>
+    <p class="empty" id="empty">Connect to see tonight's cast.</p>
+  </aside>
+</div>
+<script src="overlay-core.js"></script>
 <script src="setup-core.js"></script>
 <script src="control.js"></script>
 </body>

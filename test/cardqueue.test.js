@@ -60,26 +60,51 @@ test('clear() empties waiting cards', async () => {
   assert.deepStrictEqual(shown, [1]);
 });
 
-const { cardModel } = require('../public/overlay-core');
+const { cardModel, nameColor, initialOf, NAME_COLORS } = require('../public/overlay-core');
 
-test('cardModel: kinds map to labels and classes', () => {
+test('nameColor is deterministic, case-insensitive and always from the palette', () => {
+  assert.strictEqual(nameColor('PixelBean'), nameColor('pixelbean'));
+  assert.ok(NAME_COLORS.includes(nameColor('anyone')));
+  assert.ok(NAME_COLORS.length >= 10);
+  const colors = new Set(['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l'].map(nameColor));
+  assert.ok(colors.size >= 5, 'names spread across the palette');
+  assert.ok(NAME_COLORS.includes(nameColor('')));
+  assert.ok(NAME_COLORS.includes(nameColor(undefined)));
+});
+
+test('initialOf gives the first letter or digit, uppercased', () => {
+  assert.strictEqual(initialOf('pixelbean'), 'P');
+  assert.strictEqual(initialOf('_7up'), '7');
+  assert.strictEqual(initialOf(''), '?');
+  assert.strictEqual(initialOf(null), '?');
+});
+
+test('cardModel: kinds map to labels, verbs and classes', () => {
   const cast = cardModel({ kind: 'cast', user: 'Pixel', role: 'The Snack Critic', logline: 'Harsh but fair.', regular: false });
-  assert.deepStrictEqual(cast, { className: 'cast', label: 'STARRING', who: '@Pixel as', role: 'The Snack Critic', logline: 'Harsh but fair.', badge: '' });
-  assert.strictEqual(cardModel({ kind: 'guest', user: 'R', role: 'The Special Guest', logline: 'x' }).label, 'SPECIAL GUEST STAR');
-  assert.strictEqual(cardModel({ kind: 'guest', user: 'R', role: 'The Special Guest', logline: 'x' }).className, 'guest');
-  assert.strictEqual(cardModel({ kind: 'lurk', user: 'L', role: 'The Silent Observer', logline: 'x' }).label, 'BACKGROUND EXTRA');
+  assert.deepStrictEqual(cast, {
+    className: 'cast', label: 'Starring', verb: 'joined the cast', who: 'Pixel', role: 'The Snack Critic',
+    logline: 'Harsh but fair.', badge: '', color: nameColor('Pixel'), initial: 'P',
+  });
+  const guest = cardModel({ kind: 'guest', user: 'R', role: 'The Special Guest', logline: 'x' });
+  assert.strictEqual(guest.label, 'Special guest star');
+  assert.strictEqual(guest.verb, 'dropped in on a raid');
+  assert.strictEqual(guest.className, 'guest');
+  const lurk = cardModel({ kind: 'lurk', user: 'L', role: 'The Silent Observer', logline: 'x' });
+  assert.strictEqual(lurk.label, 'Background extra');
+  assert.strictEqual(lurk.verb, 'is watching from the back');
 });
 
 test('cardModel: Series Regulars get a badge and class', () => {
   const m = cardModel({ kind: 'cast', user: 'V', role: 'The Vet', logline: 'x', regular: true });
-  assert.strictEqual(m.badge, 'SERIES REGULAR');
+  assert.strictEqual(m.badge, 'Series regular');
   assert.strictEqual(m.className, 'cast regular');
 });
 
 test('cardModel: bad or missing fields are replaced, not shown as "undefined"', () => {
   const m = cardModel({ kind: 'weird', user: null, role: undefined, logline: 5 });
   assert.strictEqual(m.className, 'cast');
-  assert.strictEqual(m.who, '@someone as');
+  assert.strictEqual(m.who, 'someone');
+  assert.strictEqual(m.initial, 'S');
   assert.strictEqual(m.role, 'The Mystery Guest');
   assert.strictEqual(m.logline, '');
   assert.strictEqual(cardModel(null).role, 'The Mystery Guest');
@@ -87,7 +112,7 @@ test('cardModel: bad or missing fields are replaced, not shown as "undefined"', 
 
 test('cardModel: long text is clipped so a card never overflows', () => {
   const m = cardModel({ kind: 'cast', user: 'u'.repeat(80), role: 'The ' + 'x'.repeat(100), logline: 'y'.repeat(300) });
-  assert.ok(m.who.length <= 32);
+  assert.ok(m.who.length <= 25);
   assert.ok(m.role.length <= 44);
   assert.ok(m.logline.length <= 110);
 });

@@ -15,7 +15,25 @@
     return 'Heads up: this stream uses Starring: Chat, a free overlay that casts chatters in a sitcom. '
       + 'Your first message gets you a role card! Type !lurk to be a Background Extra, or !nocast to opt out and never be cast.';
   }
-  var api = { normalizeChannel: normalizeChannel, overlayUrl: overlayUrl, chatNotice: chatNotice };
+  // Browser only: copies text, falling back to a hidden textarea where navigator.clipboard is
+  // unavailable (plain http on a LAN). Resolves to true or false so the page can say what happened.
+  function copyToClipboard(text) {
+    function fallback() {
+      try {
+        var t = document.createElement('textarea');
+        t.value = text; t.setAttribute('readonly', ''); t.style.position = 'fixed'; t.style.opacity = '0';
+        document.body.appendChild(t); t.select();
+        var ok = document.execCommand('copy');
+        t.remove();
+        return ok;
+      } catch (_) { return false; }
+    }
+    if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(text).then(function () { return true; }, function () { return fallback(); });
+    }
+    return Promise.resolve(fallback());
+  }
+  var api = { normalizeChannel: normalizeChannel, overlayUrl: overlayUrl, chatNotice: chatNotice, copyToClipboard: copyToClipboard };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.SetupCore = api;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -5,8 +5,8 @@
   if (params.has('preview')) document.body.classList.add('preview'); // dark stand-in backdrop for previews in a normal browser tab
   var stage = document.getElementById('stage');
   var statusEl = document.getElementById('status');
-  var clapperTpl = document.getElementById('clapper-tpl');
-  var CLAP_MS = 1500;   // clapperboard "casting..." before the reveal
+  var statusText = document.getElementById('status-text');
+  var TYPING_MS = 1500;   // how long "Casting director is typing" shows before the card is revealed
   var HOLD_MS = 7000;   // card stays on screen
   var EXIT_MS = 650;
   var STING_VOLUME = 0.4;
@@ -74,16 +74,29 @@
     show: function (c) {
       var m = OverlayCore.cardModel(c);
       var node = el('div', 'card casting ' + m.className);
+      node.style.setProperty('--name-color', m.color);
       try {
-        node.appendChild(clapperTpl.content.cloneNode(true));
-        var body = el('div', 'body');
-        body.appendChild(el('div', 'label', m.label));
-        if (m.badge) body.appendChild(el('div', 'badge', m.badge));
-        body.appendChild(el('div', 'who', m.who));
-        body.appendChild(el('div', 'role', m.role));
-        body.appendChild(el('div', 'logline', m.logline));
-        body.appendChild(el('div', 'stamp'));
-        node.appendChild(body);
+        var typing = el('div', 'typing');
+        var dots = el('span', 'dots');
+        dots.appendChild(el('i')); dots.appendChild(el('i')); dots.appendChild(el('i'));
+        typing.appendChild(dots);
+        typing.appendChild(el('span', '', 'Casting director is typing'));
+        node.appendChild(typing);
+
+        var shell = el('div', 'shell');
+        var avatar = el('div', 'avatar', m.initial);
+        avatar.appendChild(el('span', 'dot'));
+        shell.appendChild(avatar);
+        var col = el('div', 'who-col');
+        var head = el('div', 'head');
+        head.appendChild(el('span', 'name', m.who));
+        if (m.badge) head.appendChild(el('span', 'badge', m.badge));
+        col.appendChild(head);
+        col.appendChild(el('div', 'verb', m.verb));
+        shell.appendChild(col);
+        shell.appendChild(el('div', 'chip', m.role));
+        if (m.logline) shell.appendChild(el('div', 'logline', m.logline));
+        node.appendChild(shell);
         stage.appendChild(node);
       } catch (err) { node.remove(); throw err; }
       nodes.set(c, node);
@@ -92,11 +105,11 @@
         if (!nodes.has(c)) return; // removed before the reveal: no sting, no flash
         node.classList.remove('casting');
         playSting();
-      }, CLAP_MS));
+      }, TYPING_MS));
     },
     wait: function (_c, skipped) {
       return new Promise(function (resolve) {
-        var t = setTimeout(resolve, CLAP_MS + HOLD_MS);
+        var t = setTimeout(resolve, TYPING_MS + HOLD_MS);
         skipped.then(function () { clearTimeout(t); resolve(); });
       });
     },
@@ -165,17 +178,22 @@
     if (themeMaster) { try { themeMaster.disconnect(); } catch (_) { /* already gone */ } themeMaster = null; }
   }
 
-  function section(parent, heading, list, small) {
+  // One credits row: avatar tile, Twitch-coloured name, and the role as a chip.
+  function member(parent, p, kindClass) {
+    var row = el('div', 'row ' + kindClass);
+    row.style.setProperty('--name-color', OverlayCore.nameColor(p.user));
+    row.appendChild(el('div', 'av', OverlayCore.initialOf(p.user)));
+    row.appendChild(el('span', 'nm', p.user));
+    if (p.regular) row.appendChild(el('span', 'star', '\u2605'));
+    row.appendChild(el('span', 'rl', p.role));
+    parent.appendChild(row);
+  }
+
+  function section(parent, channelName, list, kindClass) {
     if (!list.length) return;
-    parent.appendChild(el('div', 'head', heading));
-    var box = el('div', small ? 'small' : '');
-    list.forEach(function (p) {
-      var line = el('div', 'line' + (p.regular ? ' regular' : ''));
-      line.appendChild(el('span', 'name', p.user));
-      line.appendChild(el('span', 'as', 'as'));
-      line.appendChild(el('span', 'role', p.role));
-      box.appendChild(line);
-    });
+    parent.appendChild(el('div', 'chan', channelName));
+    var box = el('div', kindClass);
+    list.forEach(function (p) { member(box, p, kindClass); });
     parent.appendChild(box);
   }
 
@@ -189,14 +207,23 @@
     var scroll = el('div', 'scroll');
     scroll.style.animationDuration = m.scrollMs + 'ms';
     scroll.appendChild(el('div', 'ep', m.title));
-    section(scroll, 'STARRING', m.starring, false);
-    section(scroll, 'SPECIAL GUEST STARS', m.guests, false);
-    section(scroll, 'BACKGROUND EXTRAS', m.extras, true);
+    section(scroll, 'starring', m.starring, 'stars');
+    section(scroll, 'special-guest-stars', m.guests, 'guests');
+    section(scroll, 'background-extras', m.extras, 'extras');
     if (m.directedBy) {
-      scroll.appendChild(el('div', 'head', 'DIRECTED BY'));
-      scroll.appendChild(el('div', 'fin', m.directedBy));
+      scroll.appendChild(el('div', 'chan', 'directed-by'));
+      var dir = el('div', 'row stars');
+      dir.style.setProperty('--name-color', OverlayCore.nameColor(m.directedBy));
+      dir.appendChild(el('div', 'av', OverlayCore.initialOf(m.directedBy)));
+      dir.appendChild(el('span', 'nm', m.directedBy));
+      scroll.appendChild(dir);
     }
-    scroll.appendChild(el('div', 'logo', 'Casting by ' + m.castingBy));
+    var logo = el('div', 'logo');
+    logo.appendChild(el('span', 'mark', 'SC'));
+    var credit = el('span', '', 'Casting by ');
+    credit.appendChild(el('b', '', m.castingBy));
+    logo.appendChild(credit);
+    scroll.appendChild(logo);
     creditsEl.appendChild(scroll);
     requestAnimationFrame(function () { creditsEl.classList.add('on'); });
     playTheme(m.scrollMs);
@@ -214,7 +241,7 @@
   var statusTimer = null;
   function setStatus(text, hide, autoHideMs) {
     clearTimeout(statusTimer);
-    statusEl.textContent = text;
+    statusText.textContent = text;
     statusEl.classList.toggle('hidden', !!hide);
     if (autoHideMs) statusTimer = setTimeout(function () { statusEl.classList.add('hidden'); }, autoHideMs);
   }

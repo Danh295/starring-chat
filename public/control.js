@@ -27,29 +27,58 @@
     clearInterval(poll); poll = null; password = ''; seq += 1;
     $('panel').classList.add('hidden');
     $('login').classList.remove('hidden');
+    $('epPill').classList.add('hidden');
+    $('pausedPill').classList.add('hidden');
+    $('userbar').classList.remove('online');
+    $('userName').textContent = 'Not connected';
+    $('userState').textContent = 'Enter your password';
+    $('userAv').textContent = '?';
+    $('overlayUrl').textContent = '';
+    $('copiedOverlay').textContent = '';
+    while ($('cast').firstChild) $('cast').removeChild($('cast').firstChild);
+    $('empty').textContent = 'Connect to see tonight\'s cast.';
+    $('empty').classList.remove('hidden');
+  }
+
+  var GROUPS = [['cast', 'Starring'], ['guest', 'Special guest stars'], ['lurk', 'Background extras']];
+
+  function memberRow(m) {
+    var row = document.createElement('div');
+    row.className = 'member ' + (m.kind || 'cast');
+    row.style.setProperty('--c', OverlayCore.nameColor(m.name));
+    var av = document.createElement('div'); av.className = 'av'; av.textContent = OverlayCore.initialOf(m.name);
+    var tx = document.createElement('div'); tx.className = 'tx';
+    var nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = m.name;
+    if (m.regular) { var st = document.createElement('span'); st.className = 'st'; st.textContent = '\u2605'; nm.appendChild(st); }
+    var rl = document.createElement('span'); rl.className = 'rl'; rl.textContent = m.role;
+    tx.appendChild(nm); tx.appendChild(rl);
+    var btn = document.createElement('button'); btn.type = 'button'; btn.className = 'secondary'; btn.textContent = 'Uncast';
+    btn.setAttribute('aria-label', 'Uncast ' + m.name);
+    btn.addEventListener('click', function () { act('uncast', { login: m.login }, 'Removed ' + m.name + ' for this episode.'); });
+    row.appendChild(av); row.appendChild(tx); row.appendChild(btn);
+    return row;
   }
 
   function render(state) {
     $('episode').textContent = String(state.episode);
+    $('epPill').classList.remove('hidden');
     $('pausedPill').classList.toggle('hidden', !state.paused);
+    $('userbar').classList.add('online');
+    $('userName').textContent = channel;
+    $('userAv').textContent = OverlayCore.initialOf(channel);
+    $('userState').textContent = state.paused ? 'Casting paused' : 'Casting live';
     var list = $('cast');
     while (list.firstChild) list.removeChild(list.firstChild);
-    (state.cast || []).forEach(function (m) {
-      var li = document.createElement('li');
-      var left = document.createElement('div');
-      var who = document.createElement('span'); who.className = 'who'; who.textContent = m.name;
-      var as = document.createTextNode(' as ');
-      var role = document.createElement('span'); role.className = 'role'; role.textContent = m.role;
-      left.appendChild(who); left.appendChild(as); left.appendChild(role);
-      var tag = document.createElement('span'); tag.className = 'tag';
-      tag.textContent = m.kind === 'guest' ? ' GUEST STAR' : m.kind === 'lurk' ? ' EXTRA' : (m.regular ? ' REGULAR' : '');
-      left.appendChild(tag);
-      var btn = document.createElement('button'); btn.type = 'button'; btn.className = 'secondary'; btn.textContent = 'Uncast';
-      btn.addEventListener('click', function () { act('uncast', { login: m.login }, 'Removed ' + m.name + ' for this episode.'); });
-      li.appendChild(left); li.appendChild(btn);
-      list.appendChild(li);
+    var cast = state.cast || [];
+    GROUPS.forEach(function (g) {
+      var members = cast.filter(function (m) { return (m.kind || 'cast') === g[0]; });
+      if (!members.length) return;
+      var h = document.createElement('h4'); h.textContent = g[1] + ' (' + members.length + ')';
+      list.appendChild(h);
+      members.forEach(function (m) { list.appendChild(memberRow(m)); });
     });
-    $('empty').classList.toggle('hidden', (state.cast || []).length > 0);
+    $('empty').textContent = 'Nobody has been cast yet. The first chatter will show up here.';
+    $('empty').classList.toggle('hidden', cast.length > 0);
   }
 
   var seq = 0;          // ignore responses that arrive out of order
@@ -85,6 +114,7 @@
     say('Connecting...', true);
     api('GET', 'cast?channel=' + encodeURIComponent(channel)).then(function (state) {
       say('Connected.', true);
+      $('overlayUrl').textContent = SetupCore.overlayUrl(location.origin, channel);
       $('login').classList.add('hidden');
       $('panel').classList.remove('hidden');
       render(state);
@@ -93,6 +123,12 @@
     }).catch(function (e) { say(e.message); });
   }
 
+  $('copyOverlay').addEventListener('click', function () {
+    SetupCore.copyToClipboard($('overlayUrl').textContent).then(function (ok) {
+      $('copiedOverlay').textContent = ok ? 'Copied!' : 'Could not copy. Select the URL and copy it by hand.';
+      setTimeout(function () { $('copiedOverlay').textContent = ''; }, 3500);
+    });
+  });
   $('chan').value = channel;
   $('connect').addEventListener('click', connect);
   $('pw').addEventListener('keydown', function (e) { if (e.key === 'Enter') connect(); });

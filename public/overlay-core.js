@@ -51,7 +51,24 @@
     };
   }
 
-  const LABELS = { cast: 'STARRING', guest: 'SPECIAL GUEST STAR', lurk: 'BACKGROUND EXTRA' };
+  // Twitch-style username colors, picked to stay readable on a dark card.
+  const NAME_COLORS = ['#FF6B6B', '#FF9F43', '#FECA57', '#1DD1A1', '#48DBFB', '#54A0FF', '#A29BFE', '#FF78C4', '#00D2D3', '#F78FB3', '#7BED9F', '#EE5A24'];
+  function nameColor(login) {
+    const s = String(login || '').toLowerCase();
+    let h = 7;
+    for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+    return NAME_COLORS[h % NAME_COLORS.length];
+  }
+  function initialOf(name) {
+    const m = /[a-z0-9]/i.exec(String(name || ''));
+    return m ? m[0].toUpperCase() : '?';
+  }
+
+  const KINDS = {
+    cast: { label: 'Starring', verb: 'joined the cast' },
+    guest: { label: 'Special guest star', verb: 'dropped in on a raid' },
+    lurk: { label: 'Background extra', verb: 'is watching from the back' },
+  };
   const text = (v, fallback, max) => {
     const s = typeof v === 'string' ? v.replace(/\s+/g, ' ').trim() : '';
     return (s || fallback).slice(0, max);
@@ -60,15 +77,19 @@
   // Everything the card needs to display, from an untrusted event.
   function cardModel(msg) {
     const m = msg && typeof msg === 'object' ? msg : {};
-    const kind = LABELS[m.kind] ? m.kind : 'cast';
+    const kind = KINDS[m.kind] ? m.kind : 'cast';
     const regular = kind === 'cast' && m.regular === true;
+    const who = text(m.user, 'someone', 25);
     return {
       className: kind + (regular ? ' regular' : ''),
-      label: LABELS[kind],
-      who: '@' + text(m.user, 'someone', 25) + ' as',
+      label: KINDS[kind].label,
+      verb: KINDS[kind].verb,
+      who,
       role: text(m.role, 'The Mystery Guest', 44),
       logline: text(m.logline, '', 110),
-      badge: regular ? 'SERIES REGULAR' : '',
+      badge: regular ? 'Series regular' : '',
+      color: nameColor(who),
+      initial: initialOf(who),
     };
   }
 
@@ -93,7 +114,7 @@
     };
   }
 
-  const api = { createCardQueue, cardModel, creditsModel };
+  const api = { createCardQueue, cardModel, creditsModel, nameColor, initialOf, NAME_COLORS };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.OverlayCore = api;
 })(typeof window !== 'undefined' ? window : globalThis);
