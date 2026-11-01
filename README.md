@@ -139,6 +139,8 @@ Each cast is logged as one line: `Cast @login as The Role in channel (how)`. `ho
 
 In a normal browser tab the sting and theme stay silent until you click the page (browser autoplay rules); OBS browser sources are not affected.
 
+The pages and the overlay load their fonts (Mona Sans and Chakra Petch) from Google Fonts. Offline, they fall back to your system fonts and everything still works.
+
 ## Bring your own art and audio
 
 The default card, stamp, sting and theme are drawn with CSS/SVG and synthesized in the browser, so the project ships with no copyrighted assets. Drop your own files in to replace them: see [public/art/README.md](public/art/README.md) and [public/audio/README.md](public/audio/README.md).

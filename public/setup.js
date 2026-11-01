@@ -115,6 +115,7 @@
     var btn = $('test');
     if (btn.getAttribute('aria-busy') === 'true') return;
     btn.setAttribute('aria-busy', 'true');
+    btn.textContent = 'Sending...';
     fetch('test/cast?channel=' + encodeURIComponent(channel) + '&user=You', { cache: 'no-store' })
       .then(function (res) {
         if (res.status === 429) { result('warn', 'Too many attempts. Wait a minute and try again.'); return null; }
@@ -131,7 +132,7 @@
         else result('warn', 'The card was sent, but no overlay is open yet. Add the link in OBS, or watch it in a browser tab.', 'Open a preview tab', preview);
       })
       .catch(function () { result('warn', 'Could not reach the server. Is Starring: Chat running?'); })
-      .then(function () { btn.removeAttribute('aria-busy'); });
+      .then(function () { btn.removeAttribute('aria-busy'); btn.textContent = 'Send a test card'; });
   });
 
   var preset = new URLSearchParams(location.search).get('channel');

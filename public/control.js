@@ -56,7 +56,7 @@
   }
 
   function lock(message) {
-    clearInterval(poll); poll = null; password = ''; seq += 1; loaded = false; connected = true;
+    clearInterval(poll); poll = null; password = ''; seq += 1; loaded = false; connected = true; pendingRefresh = false; lastSig = '';
     twoStep.reset();
     clearTimeout(disarmTimer); clearInterval(creditsTimer); creditsTimer = null; creditsUntil = 0;
     $('filter').value = '';
@@ -135,7 +135,8 @@
   function renderCast() {
     var all = state.cast || [];
     if (all.length < 8 && $('filter').value) { $('filter').value = ''; syncFilterUrl(); } // never filter with a hidden box
-    var q = $('filter').value.trim().toLowerCase();
+    var typed = $('filter').value.trim();
+    var q = typed.toLowerCase();
     var rows = ControlCore.flattenCast(all).filter(function (m) {
       return !q || (m.name + ' ' + m.role).toLowerCase().indexOf(q) !== -1;
     });
@@ -155,7 +156,7 @@
     if (showLoading) { skeletonRows(body); return; }
     rows.forEach(function (m) { body.appendChild(memberRow(m)); });
     if (all.length && !rows.length) {
-      var tr = document.createElement('tr'); tr.setAttribute('role', 'row'); var td = cell('td', 'rl', 'Nobody matches “' + q + '”.'); td.setAttribute('role', 'cell'); td.colSpan = 4; tr.appendChild(td); body.appendChild(tr);
+      var tr = document.createElement('tr'); tr.setAttribute('role', 'row'); var td = cell('td', 'rl', 'Nobody matches “' + typed + '”.'); td.setAttribute('role', 'cell'); td.colSpan = 4; tr.appendChild(td); body.appendChild(tr);
     }
     if (focusKey) {
       var again = body.querySelector('button[data-key="' + focusKey.replace(/"/g, '') + '"]');
@@ -185,6 +186,7 @@
         if (e.locked) return;
         if (connected) toast('Lost the connection to the server. Still trying.', true); // said once, when it drops
         connected = false; renderCast();   // keep the last cast on screen and say the data may be old
+        lastSig = '';                      // so the next successful poll always redraws and clears the banner
       })
       .then(function () { refreshing = false; if (pendingRefresh) { pendingRefresh = false; refresh(); } });
   }

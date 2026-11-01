@@ -20,8 +20,7 @@ const DEFAULT_FALLBACKS = [
   ['The Pun Specialist', 'Cannot be stopped, only groaned at.'],
   ['The Loyal Sidekick', 'Always has the streamer\'s back.'],
   ['The Chaos Consultant', 'Suggests the bold option every single time.'],
-  // deslop-ignore-next-line 10
-  ['The Gentle Skeptic', 'Raises one eyebrow, kindly.'],
+  ['The Gentle Skeptic', 'Questions everything, always kindly.'],
   ['The Snack Supplier', 'Somehow always has exactly what the moment needs.'],
   ['The Tiny Tornado', 'Brings big energy in small messages.'],
   ['The Soundtrack Curator', 'Has a song suggestion for every mood.'],
