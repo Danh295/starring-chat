@@ -27,9 +27,10 @@
 </header>
 
 <main class="page">
-  <section class="login" id="login" aria-labelledby="loginTitle">
-    <h1 id="loginTitle">Control room</h1>
-    <p class="intro">Run your show from here. Enter your channel and your control password. The password is the CONTROL_PASSWORD line in the settings file (.env) of the computer running Starring: Chat.</p>
+  <h1 id="pageTitle">Control room</h1>
+  <section class="login" id="login" aria-labelledby="pageTitle">
+    <p class="intro">Run your show from here. Enter your channel and your control password: the one you chose when you set up Starring: Chat (the CONTROL_PASSWORD line in its .env settings file).</p>
+    <p class="warn-http hidden" id="httpWarn" role="note">This connection is not private. Anyone on your network could see the password. Use the https link instead, or open this page on the computer running Starring: Chat.</p>
     <form id="loginForm" class="login-form">
       <div>
         <label for="chan">Channel</label>
@@ -99,7 +100,7 @@
     <details>
       <summary>Overlay link</summary>
       <div class="detail-body">
-        <div id="overlayUrl" class="readout" tabindex="0" role="textbox" aria-readonly="true" aria-label="Overlay link"></div>
+        <input id="overlayUrl" class="readout" type="text" readonly aria-label="Overlay link">
         <button id="copyOverlay" type="button" class="secondary">Copy link</button>
         <p class="hint">Paste it into an OBS Browser source: width 1920, height 1080, Control audio via OBS ticked.</p>
       </div>

@@ -33,7 +33,7 @@
       method: method,
       headers: Object.assign({ 'x-control-password': password }, body ? { 'content-type': 'application/json' } : {}),
       body: body ? JSON.stringify(body) : undefined,
-    }).then(function (res) {
+    }).catch(function () { throw new Error('Can’t reach Starring: Chat. Check that it is running.'); }).then(function (res) {
       return res.json().catch(function () { return {}; }).then(function (data) {
         var locked = function (message) { lock(message); var err = new Error(message); err.locked = true; return err; };
         if (res.status === 401) throw locked('That password is not right. Check CONTROL_PASSWORD on the server.');
@@ -54,7 +54,7 @@
     $('panel').classList.add('hidden');
     $('login').classList.remove('hidden');
     ['chanFact', 'stateFact', 'epFact'].forEach(function (id) { $(id).classList.add('hidden'); });
-    $('overlayUrl').textContent = '';
+    $('overlayUrl').value = '';
     if (message) {
       $('loginMsg').textContent = message; $('loginMsg').className = 'field-msg err';
       $('pw').setAttribute('aria-invalid', 'true'); $('pw').focus({ preventScroll: true });
@@ -101,8 +101,10 @@
     box.appendChild(document.createTextNode(m.name));
     who.appendChild(box);
     tr.appendChild(who);
-    tr.appendChild(cell('td', 'role', m.role));
-    tr.appendChild(cell('td', 'type', ControlCore.tierLabel(m.tier)));
+    var roleCell = cell('td', 'role', m.role); roleCell.dataset.label = 'Role';
+    var typeCell = cell('td', 'type', ControlCore.tierLabel(m.tier)); typeCell.dataset.label = 'Type';
+    tr.appendChild(roleCell);
+    tr.appendChild(typeCell);
     var act = cell('td', 'act');
     var btn = document.createElement('button'); btn.type = 'button'; btn.className = 'secondary';
     var armed = twoStep.isArmed(key);
@@ -252,7 +254,7 @@
       msg.textContent = '';
       $('login').classList.add('hidden');
       $('panel').classList.remove('hidden');
-      $('overlayUrl').textContent = SetupCore.overlayUrl(location.origin, channel);
+      $('overlayUrl').value = SetupCore.overlayUrl(location.origin, channel);
       say('Ready.');
       stamp();
       render();
@@ -277,9 +279,13 @@
       });
     });
   });
+  var creditsPending = false;
   $('credits').addEventListener('click', function () {
-    if ($('credits').getAttribute('aria-disabled') === 'true') return;
+    if ($('credits').getAttribute('aria-disabled') === 'true') { say('Credits are already rolling.'); return; }
+    if (creditsPending) return;
+    creditsPending = true;
     act2('credits', null, null).then(function (res) {
+      creditsPending = false;
       if (!res) return;
       if (res.rolled) {
         say('Credits are rolling.');
@@ -295,6 +301,7 @@
       renderTiles();
       act2('new-episode', null, 'New episode started.');
     } else {
+      say('Tap New episode again within 4 seconds to clear tonight’s cast and start fresh.');
       renderTiles();
       scheduleDisarm();
     }
@@ -310,7 +317,7 @@
   $('retry').addEventListener('click', function () { refresh(); });
   $('copyOverlay').addEventListener('click', function () {
     var btn = $('copyOverlay');
-    SetupCore.copyToClipboard($('overlayUrl').textContent).then(function (ok) {
+    SetupCore.copyToClipboard($('overlayUrl').value).then(function (ok) {
       btn.textContent = ok ? 'Copied' : 'Select the link and copy it';
       btn.classList.toggle('done', ok);
       say(ok ? 'Link copied.' : 'Could not copy. Select the link and copy it by hand.', !ok);
@@ -319,6 +326,7 @@
     });
   });
 
+  if (location.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].indexOf(location.hostname) === -1) $('httpWarn').classList.remove('hidden');
   $('chan').value = channel;
   $('filter').value = params.get('q') || '';
   (channel ? $('pw') : $('chan')).focus({ preventScroll: true });

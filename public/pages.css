@@ -73,22 +73,23 @@ input[aria-invalid="true"] { border-color: var(--color-error); }
 .stop::after { content: ""; position: absolute; inset-block-start: 0.2rem; inset-inline-start: 0; inline-size: 1.5rem; block-size: 1.5rem; border: var(--rule-bar) solid var(--color-ink); background: var(--color-paper); }
 .stop[data-state="current"]::after { background: var(--color-accent); border-color: var(--color-accent); }
 .stop[data-state="done"]::after { background: var(--color-ink); box-shadow: inset 0 0 0 4px var(--color-paper); }
-.stop[data-state="locked"]::after { border-color: var(--color-ink-rule); }
-.stop[data-state="locked"] > :not(.lock-note) { opacity: 0.6; }
+.stop[data-state="locked"]::after { border-color: var(--color-muted); }
+.stop[data-state="locked"] > :not(.lock-note) { opacity: 0.75; }
 .stop h2 { font-size: var(--text-xl); }
 .stop > p { margin-block-start: var(--space-3xs); color: var(--color-ink-2); }
 .stop > .lock-note { color: var(--color-muted); font-size: var(--text-sm); }
 .stop:not([data-state="locked"]) > .lock-note { display: none; }
 .plate-body { margin-block-start: var(--space-md); }
 .plate-body > * + * { margin-block-start: var(--space-sm); }
-.readout { padding: var(--space-sm) var(--space-md); border: var(--rule-bar) solid var(--color-ink); background: var(--color-paper-3); font-size: var(--text-sm); overflow-wrap: anywhere; user-select: all; }
-.readout.prose { font-size: var(--text-md); line-height: 1.5; }
+input.readout, textarea.readout { display: block; inline-size: 100%; padding: var(--space-sm) var(--space-md); border: var(--rule-bar) solid var(--color-ink); border-radius: var(--radius-card); background: var(--color-paper-3); color: var(--color-ink); font: 500 var(--text-sm)/1.5 var(--font-body); }
+textarea.readout { min-block-size: 8rem; resize: none; font-size: var(--text-md); }
 .signs { display: flex; flex-wrap: wrap; gap: var(--space-sm); margin: var(--space-md) 0 0; }
 .signs > div { min-inline-size: 8rem; padding: var(--space-xs) var(--space-md); border: var(--rule-bar) solid var(--color-ink); background: var(--color-paper-2); }
 .signs dt { color: var(--color-muted); font-size: var(--text-sm); }
 .signs dd { margin: 0; color: var(--color-accent-2); font-size: var(--text-xl); font-weight: 800; }
 .result { min-block-size: 1.5em; margin: 0; font-weight: 500; color: var(--color-ink-2); }
 .result.ok { color: var(--color-success); }
+.result.err { color: var(--color-error); }
 .result a { color: var(--color-accent-text); }
 
 /* ---- details ---------------------------------------------------------------------------------------------------- */
@@ -154,6 +155,7 @@ details[open] summary { border-block-end: var(--rule-hair) solid var(--color-ink
 .notice button { margin-block-start: var(--space-md); }
 .detail-body { padding-block: var(--space-md); display: grid; gap: var(--space-sm); justify-items: start; }
 .detail-body .readout { justify-self: stretch; }
+.warn-http { margin: var(--space-md) 0 0; padding: var(--space-sm) var(--space-md); border: var(--rule-bar) solid var(--color-error); color: var(--color-ink); font-size: var(--text-sm); }
 
 @media (max-width: 52rem) {
   .controls li { grid-template-columns: 1fr; gap: var(--space-xs); }
@@ -163,4 +165,5 @@ details[open] summary { border-block-end: var(--rule-hair) solid var(--color-ink
   .board thead { position: absolute; inline-size: 1px; block-size: 1px; overflow: clip; clip-path: inset(50%); }
   .board tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--space-md); padding-block: var(--space-xs); border-block-end: var(--rule-hair) solid var(--color-rule); }
   .board td { padding: 0; border: 0; } .board td.act { grid-row: 1 / span 3; grid-column: 2; align-self: center; }
+  .board td[data-label]::before { content: attr(data-label) ": "; color: var(--color-muted); font-size: var(--text-sm); }
 }

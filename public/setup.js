@@ -9,7 +9,8 @@
   var STATE_WORDS = { current: ' (current step)', done: ' (done)', locked: ' (locked until step 1 is done)', ready: '' };
   function setState(stop, state) {
     stop.dataset.state = state;
-    if (state === 'locked') stop.setAttribute('inert', ''); else stop.removeAttribute('inert');
+    // a locked stop stays readable (its heading and the reason are announced); only its buttons switch off
+    stop.querySelectorAll('button').forEach(function (b) { b.disabled = state === 'locked'; });
     if (state === 'current') stop.setAttribute('aria-current', 'step'); else stop.removeAttribute('aria-current');
     stop.querySelector('.state-note').textContent = STATE_WORDS[state];
   }
@@ -51,10 +52,12 @@
     msg.textContent = hint.message;
     msg.className = 'field-msg ' + (hint.state === 'ok' ? 'ok' : hint.state === 'invalid' ? 'err' : '');
     input.setAttribute('aria-invalid', String(hint.state === 'invalid'));
+    var was = channel;
     channel = hint.channel;
+    if (channel && channel !== was) announce('Channel set to ' + channel + '. Steps 2, 3 and 4 are ready.');
     if (channel) {
       setState(stops[0], 'done'); setState(stops[1], 'current'); setState(stops[2], 'ready'); setState(stops[3], 'ready');
-      $('url').textContent = SetupCore.overlayUrl(location.origin, channel);
+      $('url').value = SetupCore.overlayUrl(location.origin, channel);
       $('toControl').href = 'control.html?channel=' + encodeURIComponent(channel);
     } else {
       setState(stops[0], 'current'); setState(stops[1], 'locked'); setState(stops[2], 'locked'); setState(stops[3], 'locked');
@@ -62,7 +65,8 @@
     }
   }
   input.addEventListener('input', update);
-  $('notice').textContent = SetupCore.chatNotice();
+  $('notice').value = SetupCore.chatNotice();
+  ['url', 'notice'].forEach(function (id) { $(id).addEventListener('focus', function () { $(id).select(); }); });
 
   // ---- copy buttons: the button says what happened, and a screen reader hears it
   function wireCopy(buttonId, getText, idleLabel) {
@@ -78,8 +82,8 @@
       });
     });
   }
-  wireCopy('copy', function () { return $('url').textContent; }, 'Copy link');
-  wireCopy('copyNotice', function () { return $('notice').textContent; }, 'Copy message');
+  wireCopy('copy', function () { return $('url').value; }, 'Copy link');
+  wireCopy('copyNotice', function () { return $('notice').value; }, 'Copy message');
 
   // ---- step 3: a real test card, and an honest answer
   function say(kind, text, linkText, href) {
@@ -103,17 +107,17 @@
     var ch = encodeURIComponent(channel);
     fetch('test/cast?channel=' + ch + '&user=You', { cache: 'no-store' })
       .then(function (res) {
-        if (res.status === 429) { say('', 'Too many attempts. Wait a minute and try again.'); return null; }
-        if (res.status === 403) { say('', 'Test cards can only be sent from the computer running Starring: Chat. Use the control room there instead.', 'Open the control room', 'control.html?channel=' + ch); return null; }
-        if (!res.ok) { say('', 'The test did not go through. Check that Starring: Chat is running, then try again.'); return null; }
+        if (res.status === 429) { say('err', 'Too many attempts. Wait a minute and try again.'); return null; }
+        if (res.status === 403) { say('err', 'Test cards can only be sent from the computer running Starring: Chat. Use the control room there instead.', 'Open the control room', 'control.html?channel=' + ch); return null; }
+        if (!res.ok) { say('err', 'The test did not go through. Check that Starring: Chat is running, then try again.'); return null; }
         return res.json();
       })
       .then(function (data) {
         if (!data) return;
         if (data.delivered > 0) say('ok', 'Sent. Look for the card in OBS.');
-        else say('', 'The card was sent, but no overlay is open yet. Add the link in OBS, or watch it in a browser tab.', 'Open a preview tab', 'overlay.html?channel=' + ch + '&preview=1');
+        else say('err', 'The card was sent, but no overlay is open yet. Add the link in OBS, or watch it in a browser tab.', 'Open a preview tab', 'overlay.html?channel=' + ch + '&preview=1');
       })
-      .catch(function () { say('', 'Could not reach the server. Is Starring: Chat running?'); })
+      .catch(function () { say('err', 'Could not reach the server. Is Starring: Chat running?'); })
       .then(function () { btn.removeAttribute('aria-busy'); btn.textContent = 'Send a test card'; });
   });
 

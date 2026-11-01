@@ -47,17 +47,17 @@
       <div class="plate-body">
         <label for="channel-input">Twitch channel name</label>
         <input id="channel-input" type="text" inputmode="text" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="pixelbean" aria-describedby="channel-msg">
-        <p id="channel-msg" class="field-msg" role="status"></p>
+        <p id="channel-msg" class="field-msg"></p>
       </div>
     </li>
 
-    <li class="stop" id="s2" data-state="locked" inert>
+    <li class="stop" id="s2" data-state="locked">
       <h2>2. Add it to OBS<span class="sr state-note"></span></h2>
       <p>Copy your overlay link and add it as a Browser source.</p>
-      <p class="lock-note">Do step 1 first: type your channel name.</p>
+      <p class="lock-note" id="lock2">Do step 1 first: type your channel name.</p>
       <div class="plate-body">
-        <div id="url" class="readout" tabindex="0" role="textbox" aria-readonly="true" aria-label="Your overlay link"></div>
-        <button id="copy" type="button">Copy link</button>
+        <input id="url" class="readout" type="text" readonly aria-label="Your overlay link">
+        <button id="copy" type="button" aria-describedby="lock2">Copy link</button>
         <dl class="signs" aria-label="Browser source settings">
           <div><dt>Width</dt><dd>1920</dd></div>
           <div><dt>Height</dt><dd>1080</dd></div>
@@ -67,23 +67,23 @@
       </div>
     </li>
 
-    <li class="stop" id="s3" data-state="locked" inert>
+    <li class="stop" id="s3" data-state="locked">
       <h2>3. See it work<span class="sr state-note"></span></h2>
       <p>Send yourself a test card to check the overlay is showing.</p>
-      <p class="lock-note">Do step 1 first: type your channel name.</p>
+      <p class="lock-note" id="lock3">Do step 1 first: type your channel name.</p>
       <div class="plate-body">
-        <button id="test" type="button">Send a test card</button>
+        <button id="test" type="button" aria-describedby="lock3">Send a test card</button>
         <p id="test-result" class="result" role="status"></p>
       </div>
     </li>
 
-    <li class="stop" id="s4" data-state="locked" inert>
+    <li class="stop" id="s4" data-state="locked">
       <h2>4. Tell your chat<span class="sr state-note"></span></h2>
       <p>Paste this into chat once so viewers know what the cards are. It has no links, so link filters leave it alone.</p>
-      <p class="lock-note">Do step 1 first: type your channel name.</p>
+      <p class="lock-note" id="lock4">Do step 1 first: type your channel name.</p>
       <div class="plate-body">
-        <div id="notice" class="readout prose" tabindex="0" role="textbox" aria-readonly="true" aria-label="Message to paste into chat"></div>
-        <button id="copyNotice" type="button" class="secondary">Copy message</button>
+        <textarea id="notice" class="readout prose" rows="4" readonly aria-label="Message to paste into chat"></textarea>
+        <button id="copyNotice" type="button" class="secondary" aria-describedby="lock4">Copy message</button>
       </div>
     </li>
   </ol>

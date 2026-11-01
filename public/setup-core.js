@@ -44,7 +44,16 @@
       } catch (_) { return false; }
     }
     if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
-      return navigator.clipboard.writeText(text).then(function () { return true; }, function () { return fallback(); });
+      // writeText can hang when the browser is waiting on a permission, so give it a moment and then use the older path
+      return new Promise(function (resolve) {
+        var settled = false;
+        var finish = function (ok) { if (!settled) { settled = true; resolve(ok); } };
+        var timer = setTimeout(function () { finish(fallback()); }, 1500);
+        navigator.clipboard.writeText(text).then(
+          function () { clearTimeout(timer); finish(true); },
+          function () { clearTimeout(timer); finish(fallback()); }
+        );
+      });
     }
     return Promise.resolve(fallback());
   }
