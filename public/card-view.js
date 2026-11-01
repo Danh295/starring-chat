@@ -1,6 +1,9 @@
-// Builds the cast card DOM. Shared by the OBS overlay and the setup page's live preview, so what
-// the streamer previews is exactly what viewers see. All text goes in with textContent (never innerHTML).
+// Builds the cast card (a sign plate). Shared by the stream overlay and the setup page preview, so what a
+// streamer previews is what viewers see. Every string goes in with textContent, never innerHTML.
 (function (root) {
+  // How long the casting bar shows before the role is revealed.
+  var TYPING_MS = 1500;
+
   function el(tag, cls, text) {
     var e = document.createElement(tag);
     if (cls) e.className = cls;
@@ -8,41 +11,36 @@
     return e;
   }
 
-  // Returns a card in its "casting" phase (a progress bar). Call reveal() to show the role.
-  // How long the "casting" bar shows before the role is revealed; the overlay and the setup preview both use this.
-  var TYPING_MS = 1500;
-
+  // Returns a card in its casting phase. Call reveal() to swap in the plate.
   function build(msg) {
     if (!root.OverlayCore) throw new Error('card-view.js needs overlay-core.js loaded first');
     var m = root.OverlayCore.cardModel(msg);
-    var node = el('div', 'card casting tier-' + m.tier + ' ' + m.className);
-    node.style.setProperty('--name-color', m.color);
+    var card = el('div', 'card casting tier-' + m.tier);
+    card.style.setProperty('--casting-ms', TYPING_MS + 'ms'); // the bar and the reveal share one duration
 
-    var hud = el('div', 'hud');
-    hud.appendChild(el('div', 'hud-text', 'Casting director is picking a role'));
-    var bar = el('div', 'hud-bar');
-    bar.appendChild(el('i'));
-    hud.appendChild(bar);
-    node.appendChild(hud);
+    var casting = el('div', 'casting-sign');
+    casting.appendChild(el('p', 'casting-text', 'Casting director is picking a role'));
+    var track = el('div', 'casting-track');
+    track.appendChild(el('i'));
+    casting.appendChild(track);
+    card.appendChild(casting);
 
-    var frame = el('div', 'frame');
-    var shell = el('div', 'shell');
-    var top = el('div', 'top');
-    top.appendChild(el('div', 'tile', m.initial));
-    var id = el('div', 'id');
-    id.appendChild(el('div', 'name', m.who));
-    id.appendChild(el('div', 'verb', m.verb));
-    top.appendChild(id);
-    top.appendChild(el('div', 'tag', m.badge || m.label));
-    shell.appendChild(top);
-    shell.appendChild(el('div', 'role', m.role));
-    if (m.logline) shell.appendChild(el('div', 'logline', m.logline));
-    frame.appendChild(shell);
-    node.appendChild(frame);
-    return node;
+    var plate = el('div', 'plate');
+    var top = el('div', 'plate-top');
+    top.appendChild(el('div', 'line-square', m.initial));
+    var who = el('div', 'plate-who');
+    who.appendChild(el('p', 'plate-name', m.who));
+    who.appendChild(el('p', 'plate-verb', m.verb));
+    top.appendChild(who);
+    plate.appendChild(top);
+    plate.appendChild(el('p', 'plate-role', m.role));
+    if (m.logline) plate.appendChild(el('p', 'plate-line', m.logline));
+    plate.appendChild(el('p', 'plate-tier', m.badge || m.label));
+    card.appendChild(plate);
+    return card;
   }
 
-  function reveal(node) { node.classList.remove('casting'); }
+  function reveal(card) { card.classList.remove('casting'); }
 
   root.CardView = { build: build, reveal: reveal, TYPING_MS: TYPING_MS };
 })(window);

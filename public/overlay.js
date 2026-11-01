@@ -1,21 +1,20 @@
-// OBS browser source. Connects to the server and shows role cards one at a time.
+// The OBS browser source. Connects to the server and shows cast cards one at a time, then rolls the credits.
 (function () {
   var params = new URLSearchParams(location.search);
   var channel = (params.get('channel') || '').toLowerCase();
-  if (params.has('preview')) document.body.classList.add('preview'); // dark stand-in backdrop for previews in a normal browser tab
+  if (params.has('preview')) document.body.classList.add('preview'); // a plain backdrop, to look at it in a normal browser tab
   var stage = document.getElementById('stage');
   var statusEl = document.getElementById('status');
-  var statusText = document.getElementById('status-text');
-  var TYPING_MS = CardView.TYPING_MS; // how long the casting bar shows before the card is revealed
-  var HOLD_MS = 7000;   // card stays on screen
-  // how long the leave animation runs: read from the same CSS token, and zero when motion is reduced
+  var creditsEl = document.getElementById('credits');
+  var HOLD_MS = 7000;               // how long a card stays
+  var sleep = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };
+
+  // How long the leave animation runs: read from the same CSS token, and none when motion is reduced.
   function exitMs() {
     if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return 0;
     var v = getComputedStyle(document.documentElement).getPropertyValue('--dur-short').trim();
     return v.slice(-2) === 'ms' ? parseFloat(v) + 30 : 250;
   }
-  var STING_VOLUME = 0.4;
-  var sleep = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };
 
   function el(tag, cls, text) {
     var e = document.createElement(tag);
@@ -24,8 +23,7 @@
     return e;
   }
 
-  // ---- optional hand-drawn art: drop PNGs into public/art/ and they are used automatically.
-  // The server lists which files exist, so a default install makes no failing requests.
+  // ---- optional hand-drawn art: drop PNGs in public/art/ and they are used. The server lists what exists.
   var ART = { 'card-frame.png': ['has-frame-art', '--frame-art'], 'stamp.png': ['has-stamp-art', '--stamp-art'], 'background.png': ['has-bg-art', '--bg-art'] };
   function loadArt() {
     fetch('art-manifest').then(function (r) { return r.json(); }).then(function (m) {
@@ -39,60 +37,24 @@
   }
   loadArt();
 
-  // ---- sound: public/audio/sting.mp3 if present, otherwise a short synthesized sting
-  var audioCtx = null;
-  var hasFileSting = null; // null = still finding out
-  var stingAudio = new Audio('audio/sting.mp3');
-  stingAudio.preload = 'auto';
-  stingAudio.volume = STING_VOLUME;
-  stingAudio.addEventListener('error', function () { hasFileSting = false; });
-  stingAudio.addEventListener('canplaythrough', function () { hasFileSting = true; });
-  function synthSting() {
-    try {
-      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
-      if (audioCtx.state === 'suspended') audioCtx.resume();
-      var t0 = audioCtx.currentTime;
-      [523.25, 659.25, 783.99, 1046.5].forEach(function (f, i) {
-        var o = audioCtx.createOscillator();
-        var g = audioCtx.createGain();
-        o.type = 'triangle';
-        o.frequency.value = f;
-        g.gain.setValueAtTime(0.0001, t0 + i * 0.09);
-        g.gain.exponentialRampToValueAtTime(STING_VOLUME * 0.6, t0 + i * 0.09 + 0.02);
-        g.gain.exponentialRampToValueAtTime(0.0001, t0 + i * 0.09 + 0.5);
-        o.connect(g); g.connect(audioCtx.destination);
-        o.start(t0 + i * 0.09); o.stop(t0 + i * 0.09 + 0.55);
-      });
-    } catch (_) { /* audio is optional */ }
-  }
-  function playSting() {
-    if (hasFileSting !== true) return synthSting();
-    stingAudio.currentTime = 0;
-    var p = stingAudio.play();
-    if (p && p.catch) p.catch(function () { /* autoplay blocked: stay silent */ });
-  }
-
-  // ---- cards
-  var nodes = new Map(); // card -> DOM node
-  var timers = new Map(); // card -> pending reveal timer
+  // ---- cards, one at a time
+  var nodes = new Map();   // card event -> its element
+  var timers = new Map();  // card event -> its reveal timer
   var queue = OverlayCore.createCardQueue({
     show: function (c) {
-      var node;
-      try {
-        node = CardView.build(c);
-        stage.appendChild(node);
-      } catch (err) { if (node) node.remove(); throw err; }
+      var node = CardView.build(c);
+      stage.appendChild(node);
       nodes.set(c, node);
       node.classList.add('enter');
       timers.set(c, setTimeout(function () {
-        if (!nodes.has(c)) return; // removed before the reveal: no sting, no flash
+        if (!nodes.has(c)) return; // removed before the reveal: no sting
         CardView.reveal(node);
-        playSting();
-      }, TYPING_MS));
+        OverlaySound.playSting();
+      }, CardView.TYPING_MS));
     },
     wait: function (_c, skipped) {
       return new Promise(function (resolve) {
-        var t = setTimeout(resolve, TYPING_MS + HOLD_MS);
+        var t = setTimeout(resolve, CardView.TYPING_MS + HOLD_MS);
         skipped.then(function () { clearTimeout(t); resolve(); });
       });
     },
@@ -108,76 +70,26 @@
     },
   });
 
-  // ---- end credits
-  var creditsEl = document.getElementById('credits');
+  // ---- the credits: a departures board
   var creditsActive = false;
-  var deferred = []; // cast events that arrived during the credits
-  var themeAudio = new Audio('audio/theme.mp3');
-  themeAudio.preload = 'auto';
-  themeAudio.volume = STING_VOLUME;
-  var hasFileTheme = null;
-  var themeMaster = null;
-  themeAudio.addEventListener('error', function () { hasFileTheme = false; });
-  themeAudio.addEventListener('canplaythrough', function () { hasFileTheme = true; });
+  var deferred = []; // cards for people cast while the credits roll are shown after
 
-  // Placeholder theme (a bouncy synthesized loop) used until public/audio/theme.mp3 exists.
-  function synthTheme(ms) {
-    try {
-      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
-      if (audioCtx.state === 'suspended') audioCtx.resume();
-      var melody = [72, 76, 79, 76, 74, 77, 81, 77, 72, 76, 79, 84, 83, 79, 76, 72];
-      var step = 0.22;
-      var t0 = audioCtx.currentTime + 0.1;
-      var total = ms / 1000;
-      var master = audioCtx.createGain();
-      master.gain.setValueAtTime(STING_VOLUME * 0.5, t0);
-      master.gain.setValueAtTime(STING_VOLUME * 0.5, t0 + total - 3);
-      master.gain.linearRampToValueAtTime(0.0001, t0 + total);
-      master.connect(audioCtx.destination);
-      themeMaster = master;
-      for (var i = 0; i * step < total - 0.3; i++) {
-        var note = function (midi, when, len, type, vol) {
-          var o = audioCtx.createOscillator(); var g = audioCtx.createGain();
-          o.type = type; o.frequency.value = 440 * Math.pow(2, (midi - 69) / 12);
-          g.gain.setValueAtTime(0.0001, when);
-          g.gain.exponentialRampToValueAtTime(vol, when + 0.02);
-          g.gain.exponentialRampToValueAtTime(0.0001, when + len);
-          o.connect(g); g.connect(master); o.start(when); o.stop(when + len + 0.05);
-        };
-        note(melody[i % melody.length], t0 + i * step, 0.3, 'triangle', 0.5);
-        if (i % 4 === 0) note(melody[i % melody.length] - 24, t0 + i * step, 0.8, 'sine', 0.6);
-      }
-    } catch (_) { /* audio is optional */ }
+  function row(parent, p, tier) {
+    var r = el('div', 'row tier-' + tier);
+    r.appendChild(el('div', 'line-square', OverlayCore.initialOf(p.user)));
+    r.appendChild(el('span', 'row-name', p.user));
+    if (p.regular) r.appendChild(el('span', 'row-tag', 'Series regular'));
+    r.appendChild(el('span', 'row-role', p.role));
+    parent.appendChild(r);
   }
-  function playTheme(ms) {
-    if (hasFileTheme === true) {
-      themeAudio.currentTime = 0;
-      var p = themeAudio.play();
-      if (p && p.catch) p.catch(function () { /* autoplay blocked: stay silent */ });
-    } else synthTheme(ms);
-  }
-
-  function stopTheme() {
-    try { themeAudio.pause(); } catch (_) { /* nothing playing */ }
-    if (themeMaster) { try { themeMaster.disconnect(); } catch (_) { /* already gone */ } themeMaster = null; }
-  }
-
-  // One credits row: avatar tile ringed in the member's rarity colour, name, and role.
-  function member(parent, p, tier) {
-    var row = el('div', 'row tier-' + tier);
-    row.style.setProperty('--name-color', OverlayCore.nameColor(p.user));
-    row.appendChild(el('div', 'av', OverlayCore.initialOf(p.user)));
-    row.appendChild(el('span', 'nm', p.user));
-    if (p.regular) row.appendChild(el('span', 'star', '\u2605'));
-    row.appendChild(el('span', 'rl', p.role));
-    parent.appendChild(row);
-  }
-
-  function section(parent, heading, list, boxClass, tierFor) {
+  function board(parent, heading, list, extra, tierFor) {
     if (!list.length) return;
-    parent.appendChild(el('div', 'chan', heading));
-    var box = el('div', boxClass);
-    list.forEach(function (p) { member(box, p, tierFor(p)); });
+    var head = el('h2', 'board-head');
+    head.appendChild(el('span', '', heading));
+    head.appendChild(el('span', '', String(list.length)));
+    parent.appendChild(head);
+    var box = el('div', extra);
+    list.forEach(function (p) { row(box, p, tierFor(p)); });
     parent.appendChild(box);
   }
 
@@ -188,67 +100,60 @@
     queue.reset();
     while (creditsEl.firstChild) creditsEl.removeChild(creditsEl.firstChild);
     creditsEl.className = m.compact ? 'compact' : '';
-    var scroll = el('div', 'scroll');
-    scroll.style.animationDuration = m.scrollMs + 'ms';
-    scroll.appendChild(el('div', 'ep', m.title));
-    section(scroll, 'Starring', m.starring, 'stars', function (p) { return p.regular ? 'regular' : 'cast'; });
-    section(scroll, 'Special guest stars', m.guests, 'guests', function () { return 'guest'; });
-    section(scroll, 'Background extras', m.extras, 'extras', function () { return 'lurk'; });
+    var roll = el('div', 'roll keep-motion'); // the roll is the content, so it keeps moving even when other motion is reduced
+    roll.style.animationDuration = m.scrollMs + 'ms';
+    roll.appendChild(el('h1', 'roll-title', m.title));
+    board(roll, 'Starring', m.starring, 'board-stars', function (p) { return p.regular ? 'regular' : 'cast'; });
+    board(roll, 'Special guest stars', m.guests, 'board-guests', function () { return 'guest'; });
+    board(roll, 'Background extras', m.extras, 'board-extras', function () { return 'lurk'; });
     if (m.directedBy) {
-      scroll.appendChild(el('div', 'chan', 'Directed by'));
-      var dir = el('div', 'row tier-regular');
-      dir.style.setProperty('--name-color', OverlayCore.nameColor(m.directedBy));
-      dir.appendChild(el('div', 'av', OverlayCore.initialOf(m.directedBy)));
-      dir.appendChild(el('span', 'nm', m.directedBy));
-      scroll.appendChild(dir);
+      var head = el('h2', 'board-head'); head.appendChild(el('span', '', 'Directed by')); roll.appendChild(head);
+      row(roll, { user: m.directedBy, role: '', regular: false }, 'regular');
     }
-    var logo = el('div', 'logo');
-    logo.appendChild(el('span', 'mark', 'SC'));
-    var credit = el('span', '', 'Casting by ');
-    credit.appendChild(el('b', '', m.castingBy));
-    logo.appendChild(credit);
-    scroll.appendChild(logo);
-    creditsEl.appendChild(scroll);
-    requestAnimationFrame(function () { creditsEl.classList.add('on'); });
-    playTheme(m.scrollMs);
-    setTimeout(function () { creditsEl.classList.remove('on'); }, m.scrollMs + 600);
+    var off = el('p', 'sign-off', 'Casting by ');
+    off.appendChild(el('b', '', m.castingBy));
+    roll.appendChild(off);
+    creditsEl.appendChild(roll);
+    creditsEl.classList.add('on');
+    OverlaySound.playTheme(m.scrollMs);
+    setTimeout(function () { OverlaySound.stopTheme(); creditsEl.classList.remove('on'); }, m.scrollMs + 300); // fade out first
     setTimeout(function () {
-      stopTheme();
       while (creditsEl.firstChild) creditsEl.removeChild(creditsEl.firstChild);
       creditsActive = false;
-      // cards for viewers cast during the credits show now instead of being lost
       deferred.splice(0).forEach(function (c) { queue.push(c); });
-    }, m.scrollMs + 2200);
+    }, m.scrollMs + 1200);
   }
 
   // ---- connection
   var statusTimer = null;
-  function setStatus(text, hide, autoHideMs) {
+  function setStatus(text, hideAfterMs) {
     clearTimeout(statusTimer);
-    statusText.textContent = text;
-    statusEl.classList.toggle('hidden', !!hide);
-    if (autoHideMs) statusTimer = setTimeout(function () { statusEl.classList.add('hidden'); }, autoHideMs);
+    statusEl.textContent = text;
+    statusEl.classList.remove('hidden');
+    if (hideAfterMs) statusTimer = setTimeout(function () { statusEl.classList.add('hidden'); }, hideAfterMs);
   }
 
   var attempt = 0;
   var reconnectTimer = null;
   function connect() {
     reconnectTimer = null;
-    if (!channel) { setStatus('Add ?channel=yourname to this URL', false); return; }
+    if (!channel) { setStatus('Add ?channel=yourname to this URL'); return; }
     var proto = location.protocol === 'https:' ? 'wss' : 'ws';
     var ws = new WebSocket(proto + '://' + location.host + '/ws?channel=' + encodeURIComponent(channel));
     ws.onmessage = function (e) {
       var msg;
       try { msg = JSON.parse(e.data); } catch (_) { return; }
-      if (msg.type === 'hello') { attempt = 0; setStatus('Starring: Chat is connected', false, 4000); loadArt(); }
+      if (msg.type === 'hello') { attempt = 0; setStatus('Starring: Chat is connected', 4000); loadArt(); }
       else if (msg.type === 'cast') { if (creditsActive) { if (deferred.length < 20) deferred.push(msg); } else queue.push(msg); }
       else if (msg.type === 'credits') rollCredits(msg);
-      else if (msg.type === 'uncast') { deferred = deferred.filter(function (c) { return !(msg.login && c.login === msg.login); }); queue.removeWhere(function (c) { return !!msg.login && c.login === msg.login; }); }
-      else if (msg.type === 'episode') queue.reset();
+      else if (msg.type === 'uncast') {
+        deferred = deferred.filter(function (c) { return !(msg.login && c.login === msg.login); });
+        queue.removeWhere(function (c) { return !!msg.login && c.login === msg.login; });
+      } else if (msg.type === 'episode') queue.reset();
     };
     ws.onclose = function () {
       if (reconnectTimer) return;
-      setStatus('Starring: Chat reconnecting...', false);
+      setStatus('Starring: Chat is reconnecting');
       var delay = Math.min(10000, 500 * Math.pow(2, attempt));
       attempt += 1;
       reconnectTimer = setTimeout(connect, delay);

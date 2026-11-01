@@ -1,50 +1,43 @@
-/* Hallmark · component: stream card · genre: atmospheric · theme: Midnight (deal 3/3, seed streamer-tool-turns-twitch-21d9·7e034184·2026-11-01·r0) · states: 8 · contrast: pass · v2.0.0 */
-/* Hallmark · pre-emit critique: P4 H3 E3 S5 R4 V3 · weakest: V, the tier colour is the whole signal so it carries one square key, a ring and the edge and nothing glows */
+/* Hallmark · component: stream card · genre: modern-minimal · theme: Wayfind (deal 1/3, seed dark-technical-tool-small-ecf1·7e034184·2026-11-01·r0) · states: 8 · contrast: pass · v2.0.0 */
+/* Hallmark · pre-emit critique: P4 H3 E3 S5 R4 V3 · weakest: V, a sign plate has one idea; the tier square carries the colour and the rest stays ink */
+/* Hallmark · waive 26b · no control on this card is clickable: it is a sign read on a stream, with no button, link or field · the card is shown inside an OBS browser source nobody presses */
 
-/* The cast card. One card per chatter, shown on stream and previewed on the setup page.
-   Colour is the tier: cast, regular, guest, lurk (tokens.css). The plate is solid, so the text never fights the video. */
-.card { --tier: var(--tier-cast); position: relative; width: var(--card-width); max-width: 100%; color: var(--color-ink); font-family: var(--font-body); }
+/* A cast card is a sign plate: a square 2px border holding one instruction (the role) and the line square that says
+   which line you are on (the tier). Solid, so the type never fights the video behind it. */
+.card { --tier: var(--tier-cast); inline-size: var(--card-width); max-inline-size: 100%; color: var(--color-ink); font-family: var(--font-body); }
 .card.tier-regular { --tier: var(--tier-regular); }
 .card.tier-guest { --tier: var(--tier-guest); }
 .card.tier-lurk { --tier: var(--tier-lurk); }
 
-/* visible by default; the overlay script adds enter and leave */
-.card.enter { animation: card-in var(--dur-long) var(--ease-out) both; }
-.card.leave { animation: card-out var(--dur-short) var(--ease-in) both; }
-@keyframes card-in { from { opacity: 0; transform: translateX(calc(var(--space-xl) * -1)); } }
-@keyframes card-out { to { opacity: 0; transform: translateX(calc(var(--space-xl) * -1)); } }
+/* visible by default; the overlay script adds enter and leave. Board-stiff: stepped, nothing eases. */
+.card.enter { animation: plate-in var(--dur-short) steps(3) both; }
+.card.leave { animation: plate-out var(--dur-short) steps(3) both; }
+@keyframes plate-in { from { opacity: 0; } }
+@keyframes plate-out { to { opacity: 0; } }
 
-.frame, .shell, .hud { clip-path: polygon(var(--card-cut) 0, 100% 0, 100% calc(100% - var(--card-cut)), calc(100% - var(--card-cut)) 100%, 0 100%, 0 var(--card-cut)); }
-.frame { padding: var(--space-3xs); background: var(--tier); }
-.shell { padding: var(--space-md) var(--space-lg) var(--space-lg); background: var(--color-paper-2); }
+.plate { display: grid; gap: var(--space-xs); padding: var(--space-md) var(--space-lg) var(--space-md); border: var(--rule-bar) solid var(--color-ink); background: var(--color-paper-2); }
+.plate p { margin: 0; max-inline-size: none; }
+.plate-top { display: flex; align-items: center; gap: var(--space-md); }
+.line-square { flex: none; display: grid; place-items: center; inline-size: 3.5rem; block-size: 3.5rem; background: var(--tier); color: var(--color-void); font-size: var(--text-2xl); font-weight: 800; line-height: 1; }
+.plate-who { min-inline-size: 0; }
+.plate-name { font-size: var(--text-xl); font-weight: 800; line-height: 1.1; overflow-wrap: anywhere; }
+.plate-verb { color: var(--color-muted); font-size: var(--text-md); }
+.plate-role { margin-block-start: var(--space-xs); font-size: var(--text-4xl); font-weight: 800; letter-spacing: var(--tracking-display); line-height: 1.02; overflow-wrap: anywhere; }
+.plate-line { font-size: var(--text-lg); line-height: 1.35; color: var(--color-ink-2); }
+.plate-tier { margin-block-start: var(--space-xs); padding-block-start: var(--space-xs); border-block-start: var(--rule-hair) solid var(--color-ink-rule); color: var(--color-muted); font-size: var(--text-sm); font-weight: 500; }
+.card.tier-lurk .plate { border-color: var(--color-ink-rule); background: var(--color-paper); color: var(--color-ink); }
+.card.tier-lurk .line-square { opacity: 0.8; }
 
-.top { display: flex; align-items: center; gap: var(--space-md); }
-.tile { flex: none; display: grid; place-items: center; inline-size: 64px; block-size: 64px; background: var(--name-color); color: var(--color-void);
-  font: 700 var(--text-2xl)/1 var(--font-card); outline: 2px solid var(--tier); outline-offset: 2px; }
-.id { flex: 1; min-width: 0; }
-.name { font: 700 var(--text-2xl)/1.1 var(--font-card); color: var(--name-color); overflow-wrap: anywhere; }
-.verb { margin-top: var(--space-2xs); font-size: var(--text-lg); color: var(--color-muted); }
-.tag { align-self: flex-start; display: flex; align-items: center; gap: var(--space-xs); font: 600 var(--text-md)/1.2 var(--font-card); color: var(--tier); text-align: right; }
-.tag::before { content: ""; flex: none; inline-size: 10px; block-size: 10px; background: var(--tier); }
-
-.role { margin-top: var(--space-md); font: 700 var(--text-4xl)/1.06 var(--font-card); color: var(--color-ink); overflow-wrap: anywhere; }
-.logline { margin-top: var(--space-xs); font-size: var(--text-xl); line-height: 1.3; color: var(--color-ink-2); }
-
-/* the moment: a short casting bar, then the plate snaps in */
-.hud { display: none; inline-size: 29rem; max-inline-size: 100%; padding: var(--space-md) var(--space-lg); background: var(--color-paper-2); }
-.card.casting .hud { display: block; }
-.card.casting .frame { display: none; }
-.hud-text { font: 600 var(--text-lg)/1.2 var(--font-card); color: var(--color-muted); }
-.hud-bar { block-size: 4px; margin-top: var(--space-sm); background: var(--color-rule-2); overflow: clip; }
-.hud-bar i { display: block; block-size: 100%; background: var(--color-accent-text); transform: scaleX(0); transform-origin: left; animation: casting-fill 1.5s linear forwards; }
+/* the casting sign: a short bar, then the plate takes its place */
+.casting-sign { display: none; inline-size: min(100%, 28rem); padding: var(--space-md) var(--space-lg); border: var(--rule-bar) solid var(--color-ink); background: var(--color-paper-2); }
+.casting-text { margin: 0; color: var(--color-ink-2); font-size: var(--text-md); font-weight: 500; }
+.casting-track { block-size: 4px; margin-block-start: var(--space-sm); background: var(--color-rule); overflow: clip; }
+.casting-track i { display: block; block-size: 100%; background: var(--color-accent-text); transform: scaleX(0); transform-origin: left; animation: casting-fill var(--casting-ms, 1500ms) steps(12) forwards; }
 @keyframes casting-fill { to { transform: scaleX(1); } }
-.card:not(.casting) .frame { animation: snap var(--dur-short) var(--ease-out) both; }
-@keyframes snap { from { opacity: 0.5; transform: scale(0.96); } }
-
-.card.tier-lurk .tile { filter: saturate(0.4); }
-.card.tier-lurk .shell { background: var(--color-paper); color: var(--color-ink); }
+.card.casting .casting-sign { display: block; }
+.card.casting .plate { display: none; }
 
 @media (prefers-reduced-motion: reduce) {
-  .card.enter, .card.leave, .card:not(.casting) .frame { animation: none; }
-  .hud-bar i { animation: none; transform: scaleX(1); }
+  .card.enter, .card.leave { animation: none; }
+  .casting-track i { animation: none; transform: scaleX(1); }
 }

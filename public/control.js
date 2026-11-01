@@ -1,48 +1,39 @@
+// The control room: log in with the control password, then run the show. Every request carries the password.
 (function () {
   var $ = function (id) { return document.getElementById(id); };
   var params = new URLSearchParams(location.search);
   var channel = SetupCore.normalizeChannel(params.get('channel') || '');
   var password = '';
   var poll = null;
-  var seq = 0;
+  var seq = 0;                  // ignore answers that arrive out of order
   var refreshing = false;
-  var pendingRefresh = false; // an action finished while a poll was in flight: refresh once more
-  var lastSig = '';           // what is on screen, so a poll that changed nothing does not rebuild the table
+  var pendingRefresh = false;   // an action finished while a poll was in flight: poll once more
+  var loaded = false;           // false until the first cast arrives (the loading state)
+  var connected = true;         // false while polling fails (the error state)
   var connecting = false;
-  var copyTimer = null;
-  var loaded = false;      // false until the first cast arrives (drives the loading state)
-  var connected = true;    // false while polling fails (drives the error state)
   var state = { episode: 1, paused: false, cast: [] };
+  var lastSig = '';             // what is on screen, so a poll that changed nothing does not rebuild it
   var twoStep = ControlCore.createTwoStep({ windowMs: 4000 });
+  var disarmTimer = null;
   var creditsUntil = 0;
   var creditsTimer = null;
+  var copyTimer = null;
   var CREDITS_MS = 45000;
-  var disarmTimer = null;
 
-  // One timer drops any "tap again" prompt back to normal once its window has passed.
-  function scheduleDisarm() {
-    clearTimeout(disarmTimer);
-    disarmTimer = setTimeout(function () { renderTiles(); renderCast(); }, 4100);
+  // ---- the one status line: the result of the last action, next to the controls that caused it
+  function say(text, isErr) {
+    var s = $('status');
+    s.textContent = text;
+    s.classList.toggle('err', !!isErr);
   }
 
-  // ---- feedback ------------------------------------------------------------------------------------------
-  var toastTimer = null;
-  function toast(text, isErr) {
-    var t = $('toast');
-    t.textContent = text;
-    t.classList.toggle('err', !!isErr);
-    t.classList.add('on');
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(function () { t.classList.remove('on'); }, 3200);
-  }
-
-  // Every call carries the password in a header; the server checks it each time.
+  // ---- talking to the server
   function api(method, path, body) {
     return fetch('api/control/' + path, {
       method: method,
       headers: Object.assign({ 'x-control-password': password }, body ? { 'content-type': 'application/json' } : {}),
       body: body ? JSON.stringify(body) : undefined,
-    }).then(function (res) {
+    }).catch(function () { throw new Error('Can’t reach Starring: Chat. Check that it is running.'); }).then(function (res) {
       return res.json().catch(function () { return {}; }).then(function (data) {
         var locked = function (message) { lock(message); var err = new Error(message); err.locked = true; return err; };
         if (res.status === 401) throw locked('That password is not right. Check CONTROL_PASSWORD on the server.');
@@ -58,25 +49,31 @@
   function lock(message) {
     clearInterval(poll); poll = null; password = ''; seq += 1; loaded = false; connected = true; pendingRefresh = false; lastSig = '';
     twoStep.reset();
-    clearTimeout(disarmTimer); clearInterval(creditsTimer); creditsTimer = null; creditsUntil = 0;
+    clearTimeout(disarmTimer); clearInterval(creditsTimer); creditsTimer = null; creditsUntil = 0; resetCreditsButton();
     $('filter').value = '';
     $('panel').classList.add('hidden');
     $('login').classList.remove('hidden');
-    ['chanChip', 'stateChip', 'epChip'].forEach(function (id) { $(id).classList.add('hidden'); });
-    $('overlayUrl').textContent = '';
-    if (message) { $('loginMsg').textContent = message; $('loginMsg').className = 'field-msg err'; $('pw').setAttribute('aria-invalid', 'true'); $('pw').focus({ preventScroll: true }); }
+    ['chanFact', 'stateFact', 'epFact'].forEach(function (id) { $(id).classList.add('hidden'); });
+    $('overlayUrl').value = '';
+    if (message) {
+      $('loginMsg').textContent = message; $('loginMsg').className = 'field-msg err';
+      $('pw').setAttribute('aria-invalid', 'true'); $('pw').focus({ preventScroll: true });
+    }
   }
 
-  // ---- rendering --------------------------------------------------------------------------------------------
+  // ---- drawing
   function renderHeader() {
-    $('chanChip').textContent = '#' + channel;
-    $('chanChip').classList.remove('hidden');
+    $('chanFact').textContent = '#' + channel;
+    $('chanFact').classList.remove('hidden');
     $('episode').textContent = String(state.episode);
-    $('epChip').classList.remove('hidden');
-    $('stateChip').classList.remove('hidden');
-    $('stateText').textContent = state.paused ? 'Casting paused' : 'Casting on';
-    $('casting').setAttribute('aria-checked', String(!state.paused));
-    $('castingSub').textContent = state.paused ? 'Paused: new chatters are not getting roles. Switch it on to start again.' : 'On: new chatters get a role.';
+    $('epFact').classList.remove('hidden');
+    var st = $('stateFact');
+    st.classList.remove('hidden');
+    st.textContent = state.paused ? 'Casting paused' : 'Casting on';
+    st.className = state.paused ? '' : 'live';
+    $('casting-on').checked = !state.paused;
+    $('casting-off').checked = state.paused;
+    $('castingSub').textContent = state.paused ? 'Paused: new chatters are not getting roles. Choose On to start again.' : 'On: new chatters get a role.';
   }
 
   function renderTiles() {
@@ -90,18 +87,25 @@
     var c = document.createElement(tag);
     if (cls) c.className = cls;
     if (text !== undefined) c.textContent = text;
+    c.setAttribute('role', tag === 'tr' ? 'row' : 'cell');
     return c;
   }
 
   function memberRow(m) {
     var key = 'rm:' + m.login;
-    var tr = document.createElement('tr');
-    tr.setAttribute('role', 'row');
-    [['nm', m.name], ['rl', m.role], ['ty', ControlCore.tierLabel(m.tier)]].forEach(function (c) {
-      var td = cell('td', c[0], c[1]); td.setAttribute('role', 'cell'); tr.appendChild(td);
-    });
-    var td = cell('td', 'ac');
-    td.setAttribute('role', 'cell');
+    var tr = cell('tr');
+    var who = cell('td');
+    var box = document.createElement('div'); box.className = 'who';
+    var mark = document.createElement('span'); mark.className = 'mark tier-' + m.tier; mark.textContent = OverlayCore.initialOf(m.name);
+    box.appendChild(mark);
+    box.appendChild(document.createTextNode(m.name));
+    who.appendChild(box);
+    tr.appendChild(who);
+    var roleCell = cell('td', 'role', m.role); roleCell.dataset.label = 'Role';
+    var typeCell = cell('td', 'type', ControlCore.tierLabel(m.tier)); typeCell.dataset.label = 'Type';
+    tr.appendChild(roleCell);
+    tr.appendChild(typeCell);
+    var act = cell('td', 'act');
     var btn = document.createElement('button'); btn.type = 'button'; btn.className = 'secondary';
     var armed = twoStep.isArmed(key);
     btn.textContent = armed ? 'Yes, remove' : 'Remove';
@@ -110,24 +114,25 @@
     btn.setAttribute('aria-label', (armed ? 'Yes, remove ' : 'Remove ') + m.name + ' from tonight’s cast');
     btn.addEventListener('click', function () {
       if (twoStep.press(key) === 'confirmed') {
-        act('uncast', { login: m.login }, m.name + ' removed from this episode.');
+        doAction('uncast', { login: m.login }, m.name + ' removed from this episode.');
       } else {
-        toast('Tap “Yes, remove” to take ' + m.name + ' out of tonight’s cast.');
+        say('Tap “Yes, remove” to take ' + m.name + ' out of tonight’s cast.');
         renderCast();
         scheduleDisarm();
       }
     });
-    td.appendChild(btn);
-    tr.appendChild(td);
+    act.appendChild(btn);
+    tr.appendChild(act);
     return tr;
   }
 
   function skeletonRows(body) {
     for (var i = 0; i < 4; i++) {
-      var tr = document.createElement('tr'); tr.className = 'skeleton'; tr.setAttribute('role', 'row');
-      ['9rem', '12rem', '7rem', '5rem'].forEach(function (w) {
-        var td = document.createElement('td'); td.setAttribute('role', 'cell'); var s = document.createElement('span'); s.style.inlineSize = w; td.appendChild(s); tr.appendChild(td);
+      var tr = cell('tr'); tr.className = 'skeleton';
+      ['9rem', '12rem', '7rem'].forEach(function (w) {
+        var td = cell('td'); var s = document.createElement('span'); s.style.inlineSize = w; td.appendChild(s); tr.appendChild(td);
       });
+      tr.appendChild(cell('td'));
       body.appendChild(tr);
     }
   }
@@ -137,9 +142,7 @@
     if (all.length < 8 && $('filter').value) { $('filter').value = ''; syncFilterUrl(); } // never filter with a hidden box
     var typed = $('filter').value.trim();
     var q = typed.toLowerCase();
-    var rows = ControlCore.flattenCast(all).filter(function (m) {
-      return !q || (m.name + ' ' + m.role).toLowerCase().indexOf(q) !== -1;
-    });
+    var rows = ControlCore.flattenCast(all).filter(function (m) { return !q || (m.name + ' ' + m.role).toLowerCase().indexOf(q) !== -1; });
     var body = $('cast');
     var focusKey = document.activeElement && document.activeElement.dataset ? document.activeElement.dataset.key : null; // keep keyboard focus across a rebuild
     while (body.firstChild) body.removeChild(body.firstChild);
@@ -156,7 +159,7 @@
     if (showLoading) { skeletonRows(body); return; }
     rows.forEach(function (m) { body.appendChild(memberRow(m)); });
     if (all.length && !rows.length) {
-      var tr = document.createElement('tr'); tr.setAttribute('role', 'row'); var td = cell('td', 'rl', 'Nobody matches “' + typed + '”.'); td.setAttribute('role', 'cell'); td.colSpan = 4; tr.appendChild(td); body.appendChild(tr);
+      var tr = cell('tr', 'empty-row'); var td = cell('td', '', 'Nobody matches “' + typed + '”.'); td.colSpan = 4; tr.appendChild(td); body.appendChild(tr);
     }
     if (focusKey) {
       var again = body.querySelector('button[data-key="' + focusKey.replace(/"/g, '') + '"]');
@@ -164,10 +167,22 @@
     }
   }
 
+  function signature() { return JSON.stringify([state.cast, state.paused, state.episode, connected, loaded]); }
   function render() { renderHeader(); renderTiles(); renderCast(); lastSig = signature(); }
-  function signature() { return JSON.stringify([state.cast, state.paused, state.episode, connected, loaded, twoStep.isArmed('new-episode')]); }
 
-  // ---- talking to the server -----------------------------------------------------------------------------------
+  // One timer drops any "tap again" prompt back to normal once its window has passed.
+  function scheduleDisarm() {
+    clearTimeout(disarmTimer);
+    disarmTimer = setTimeout(function () { renderTiles(); renderCast(); }, 4100);
+  }
+
+  function stamp() {
+    var d = new Date();
+    var pad = function (n) { return (n < 10 ? '0' : '') + n; };
+    $('updated').textContent = 'Updated ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds()) + '. This page checks every 4 seconds.';
+  }
+
+  // ---- polling and actions
   function refresh() {
     if (!password) return Promise.resolve();
     if (refreshing) { pendingRefresh = true; return Promise.resolve(); }
@@ -175,54 +190,57 @@
     var mine = ++seq;
     return api('GET', 'cast?channel=' + encodeURIComponent(channel))
       .then(function (s) {
+        if (!connected) say('Reconnected.');
         connected = true; loaded = true;
         if (mine === seq && password) {
-          state = s;
-          // only rebuild the page when something changed, so a tap or keyboard focus is never lost to a poll
-          if (signature() !== lastSig) render();
+          state = s; stamp();
+          if (signature() !== lastSig) render(); // a poll that changed nothing never rebuilds the table
         }
       })
       .catch(function (e) {
         if (e.locked) return;
-        if (connected) toast('Lost the connection to the server. Still trying.', true); // said once, when it drops
-        connected = false; renderCast();   // keep the last cast on screen and say the data may be old
-        lastSig = '';                      // so the next successful poll always redraws and clears the banner
+        if (connected) say('Lost the connection to the server. Still trying.', true);
+        connected = false; renderCast();
+        lastSig = ''; // so the next good poll always redraws and clears the notice
       })
       .then(function () { refreshing = false; if (pendingRefresh) { pendingRefresh = false; refresh(); } });
   }
 
-  function act(path, extra, okText) {
+  function doAction(path, extra, okText) {
     return api('POST', path, Object.assign({ channel: channel }, extra || {}))
-      .then(function (res) { if (okText) toast(okText); return res; })
+      .then(function (res) { if (okText) say(okText); return res; })
       .then(function (res) { refresh(); return res; })
-      .catch(function (e) { if (!e.locked) toast(e.message, true); });
+      .catch(function (e) { if (!e.locked) say(e.message, true); });
   }
 
-  // ---- credits countdown (a 2px meter is the only thing that moves) -----------------------------------------------
+  function resetCreditsButton() {
+    $('credits').setAttribute('aria-disabled', 'false');
+    $('creditsTitle').textContent = 'Roll credits';
+    $('creditsSub').textContent = 'End the episode with the credits (about 45 seconds).';
+    $('creditsProg').style.transform = 'scaleX(0)';
+  }
+
+  // The 3px meter is the only thing that moves while the credits roll.
   function tickCredits() {
     var left = creditsUntil - Date.now();
-    var tile = $('credits');
+    var btn = $('credits');
     if (left <= 0) {
       clearInterval(creditsTimer); creditsTimer = null;
-      tile.setAttribute('aria-disabled', 'false');
-      $('creditsTitle').textContent = 'Roll credits';
-      $('creditsSub').textContent = 'End the episode with the credits (about 45 seconds).';
-      $('creditsProg').style.transform = 'scaleX(0)';
+      resetCreditsButton();
       return;
     }
-    tile.setAttribute('aria-disabled', 'true');
+    btn.setAttribute('aria-disabled', 'true');
     $('creditsTitle').textContent = 'Credits rolling';
-    $('creditsSub').textContent = ControlCore.countdownLabel(left) + ' left';
+    $('creditsSub').textContent = ControlCore.countdownLabel(left) + ' left.';
     $('creditsProg').style.transform = 'scaleX(' + (1 - left / CREDITS_MS).toFixed(3) + ')';
   }
 
-  // ---- filter lives in the URL so a reload keeps it --------------------------------------------------------------
+  // The filter lives in the URL, so a reload keeps it.
   function syncFilterUrl() {
-    var next = location.pathname + ControlCore.withParam(location.search, 'q', $('filter').value.trim());
-    history.replaceState(null, '', next);
+    history.replaceState(null, '', location.pathname + ControlCore.withParam(location.search, 'q', $('filter').value.trim()));
   }
 
-  // ---- connecting ------------------------------------------------------------------------------------------------
+  // ---- logging in
   function connect(e) {
     if (e) e.preventDefault();
     if (connecting) return;
@@ -241,9 +259,11 @@
       msg.textContent = '';
       $('login').classList.add('hidden');
       $('panel').classList.remove('hidden');
-      $('overlayUrl').textContent = SetupCore.overlayUrl(location.origin, channel);
+      $('overlayUrl').value = SetupCore.overlayUrl(location.origin, channel);
+      say('Ready.');
+      stamp();
       render();
-      $('casting').focus({ preventScroll: true }); // the login form just went away: put focus on the first control
+      $('casting-on').focus({ preventScroll: true }); // the login form just went away: put focus on the first control
       clearInterval(poll);
       poll = setInterval(refresh, 4000);
     }).catch(function (err) {
@@ -251,58 +271,67 @@
     }).then(function () { connecting = false; $('connect').removeAttribute('aria-busy'); });
   }
 
-  // ---- buttons -------------------------------------------------------------------------------------------------------
+  // ---- wiring
   $('loginForm').addEventListener('submit', connect);
-  $('casting').addEventListener('click', function () {
-    var pause = !state.paused;
-    seq += 1; // an in-flight poll must not overwrite the new value with the old one
-    state.paused = pause; renderHeader(); // respond instantly, the server confirms on the next refresh
-    act(pause ? 'pause' : 'resume', null, pause ? 'Casting paused.' : 'Casting is on.').then(function (res) {
-      if (!res) { state.paused = !pause; renderHeader(); } // the request failed: show the real state again
+  document.querySelectorAll('input[name="casting"]').forEach(function (r) {
+    r.addEventListener('change', function () {
+      var pause = r.value === 'off';
+      if (pause === state.paused) return;
+      seq += 1; // an in-flight poll must not overwrite the new choice with the old one
+      state.paused = pause; renderHeader(); // answer at once; the server confirms on the next poll
+      doAction(pause ? 'pause' : 'resume', null, pause ? 'Casting paused.' : 'Casting is on.').then(function (res) {
+        if (!res) { state.paused = !pause; renderHeader(); } // the request failed: show the real state again
+      });
     });
   });
+  var creditsPending = false;
   $('credits').addEventListener('click', function () {
-    if ($('credits').getAttribute('aria-disabled') === 'true') return;
-    act('credits', null, null).then(function (res) {
+    if ($('credits').getAttribute('aria-disabled') === 'true') { say('Credits are already rolling.'); return; }
+    if (creditsPending) return;
+    creditsPending = true;
+    doAction('credits', null, null).then(function (res) {
+      creditsPending = false;
       if (!res) return;
       if (res.rolled) {
-        toast('Credits are rolling.');
+        say('Credits are rolling.');
         creditsUntil = Date.now() + CREDITS_MS;
         clearInterval(creditsTimer); creditsTimer = setInterval(tickCredits, 250); tickCredits();
       } else {
-        toast({ busy: 'Credits are already rolling.', empty: 'Nobody has been cast yet, so there is nothing to roll.', 'no-overlay': 'No overlay is open for this channel. Add the link in OBS first.' }[res.reason] || 'Could not roll the credits.', true);
+        say({ busy: 'Credits are already rolling.', empty: 'Nobody has been cast yet, so there is nothing to roll.', 'no-overlay': 'No overlay is open for this channel. Add the link in OBS first.' }[res.reason] || 'Could not roll the credits.', true);
       }
     });
   });
   $('newEpisode').addEventListener('click', function () {
     if (twoStep.press('new-episode') === 'confirmed') {
       renderTiles();
-      act('new-episode', null, 'New episode started.');
+      doAction('new-episode', null, 'New episode started.');
     } else {
+      say('Tap New episode again within 4 seconds to clear tonight’s cast and start fresh.');
       renderTiles();
       scheduleDisarm();
     }
   });
   $('testCard').addEventListener('click', function () {
-    act('test-card', null, null).then(function (res) {
+    doAction('test-card', null, null).then(function (res) {
       if (!res) return;
-      if (res.delivered > 0) toast('Test card sent.');
-      else toast('Sent, but no overlay is open. Add the link in OBS first.', true);
+      if (res.delivered > 0) say('Test card sent.');
+      else say('Sent, but no overlay is open. Add the link in OBS first.', true);
     });
   });
   $('filter').addEventListener('input', function () { syncFilterUrl(); renderCast(); });
   $('retry').addEventListener('click', function () { refresh(); });
   $('copyOverlay').addEventListener('click', function () {
     var btn = $('copyOverlay');
-    SetupCore.copyToClipboard($('overlayUrl').textContent).then(function (ok) {
+    SetupCore.copyToClipboard($('overlayUrl').value).then(function (ok) {
       btn.textContent = ok ? 'Copied' : 'Select the link and copy it';
       btn.classList.toggle('done', ok);
-      toast(ok ? 'Link copied.' : 'Could not copy. Select the link and copy it by hand.', !ok);
+      say(ok ? 'Link copied.' : 'Could not copy. Select the link and copy it by hand.', !ok);
       clearTimeout(copyTimer);
       copyTimer = setTimeout(function () { btn.textContent = 'Copy link'; btn.classList.remove('done'); }, 3000);
     });
   });
 
+  if (location.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].indexOf(location.hostname) === -1) $('httpWarn').classList.remove('hidden');
   $('chan').value = channel;
   $('filter').value = params.get('q') || '';
   (channel ? $('pw') : $('chan')).focus({ preventScroll: true });

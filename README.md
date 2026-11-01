@@ -19,7 +19,7 @@ It installs as one OBS browser-source URL. Nothing to download for the streamer.
 
 ![Control room with the cast grouped by role](docs/img/control.jpg)
 
-**The look.** The stream card borrows from a game party roster: gamers already read "player joined the party", class names and rarity colours without thinking, and a role is exactly a class. Card colour tells you who just showed up, with no reading needed: **cyan** is a first-time chatter, **violet** (Twitch's colour) is a Series Regular, **gold** is a raid guest, and **grey** is a lurker. The setup and control pages are plain tool screens in a dark, square-cut style with one violet signal, so the card is the only picture.
+**The look: public signage.** The stream card is a sign plate: a square 2px border, one big instruction (the role) and a coloured line square holding the viewer's initial, the way a metro sign shows which line you are on. The square's colour is the tier, so you know who just showed up without reading: **cyan** is a first-time chatter, **violet** (Twitch's colour) is a Series Regular, **amber** is a raid guest, and **grey** is a lurker. The credits roll as a departures board. The setup page is a route (four stops on one line, each a plate with one instruction) and the control room is a cast board, all in one monospace face with a single violet signal for what is live. The reasoning is in [docs/frontend-plan.md](docs/frontend-plan.md).
 
 ## Try it in one minute (no Twitch account, no API keys)
 
@@ -53,10 +53,10 @@ Other things to poke at while the server runs (from the same machine):
 | Casting | Once per episode, on a viewer's first message. Never the broadcaster, the bot, known bots (Nightbot, StreamElements, Streamlabs, Moobot, Fossabot, SoundAlerts, WizeBot), links, or other bots' `!commands`. |
 | AI roles | OpenAI Responses API with structured output. The chat message is moderated first, the output is validated (role starts with "The", 2 to 4 words; logline under 12 words; no links or @mentions) and moderated again. If anything is slow (3 second budget), flagged, invalid or the key is missing, a role from `data/fallback-roles.json` is used. |
 | Memory | `data/cast-<channel>.json` remembers how many episodes each person has appeared in. Series Regular from the 3rd episode. A quick restart resumes the same episode instead of double-counting. |
-| Cards | Angular HUD plate with the viewer's Twitch-style name colour, an avatar tile, and the role as the headline. A short "Casting director is picking a role" progress bar resolves into the card. The colour shows the tier (cyan, violet, gold, grey). Big type for phone viewers. |
+| Cards | A sign plate: a tier-coloured line square with the viewer's initial, their name, and the role as the headline. A short "Casting director is picking a role" bar resolves into the plate. Big type for phone viewers. |
 | Pacing | At most one card per 8 seconds per channel. Cards queue, nobody is skipped. At most 40 cast per episode. |
 | Credits | `!credits` (broadcaster or mod): AI episode title ("Episode 3: The One Where ..." with a fixed fallback), Starring (regulars first), Special Guest Stars, Background Extras, Directed by, Casting by. About 45 seconds. |
-| Streamer tools | `/setup.html` is a guided four-step flow with a live preview of the real card, a working test-card button, and a troubleshooting section. `/control.html` is a password-protected control room: a casting on/off switch, roll credits (with a countdown), new episode, test card, and tonight's cast as a table with a filter. Destructive actions ask you to tap twice instead of using pop-ups, and keyboard focus is kept through every update. |
+| Streamer tools | `/setup.html` is a guided four-step route with a live preview of the real card, a working test-card button and a troubleshooting section. `/control.html` is a password-protected control room: Casting On or Paused, roll credits (with a countdown), new episode, test card, and tonight's cast as a board with a filter. Every action reports its result in one status line (no pop-ups), destructive actions ask for a second tap, and keyboard focus is kept through every update. |
 | Chat reading | Twitch EventSub over WebSocket, with `session_reconnect` migration, keepalive watchdog and backoff. Optional anonymous IRC fallback (`CHAT_SOURCE=irc`). |
 | Sharing | `npm run tunnel` wraps a free Cloudflare quick tunnel so a streamer's OBS can load an overlay served from your laptop. |
 
@@ -139,7 +139,7 @@ Each cast is logged as one line: `Cast @login as The Role in channel (how)`. `ho
 
 In a normal browser tab the sting and theme stay silent until you click the page (browser autoplay rules); OBS browser sources are not affected.
 
-The pages and the overlay load their fonts (Mona Sans and Chakra Petch) from Google Fonts. Offline, they fall back to your system fonts and everything still works.
+The pages and the overlay load their font (Chivo Mono) from Google Fonts. Offline, they fall back to your system's monospace font and everything still works.
 
 ## Bring your own art and audio
 

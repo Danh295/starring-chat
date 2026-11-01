@@ -5,33 +5,40 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Starring: Chat control room</title>
 <meta name="description" content="Run your Starring: Chat show live: pause casting, roll the credits, start a new episode and manage tonight’s cast.">
+<link rel="icon" href="data:,">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Mona+Sans:wdth,wght@75..125,200..900&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chivo+Mono:wght@400;500;800&display=swap">
 <link rel="stylesheet" href="tokens.css">
 <link rel="stylesheet" href="base.css">
-<link rel="stylesheet" href="card.css">
 <link rel="stylesheet" href="pages.css">
 </head>
 <body>
-<header class="topbar"><div class="in">
-  <a class="brand" href="setup.html">Starring: Chat</a>
-  <p class="facts">
-    <span class="hidden" id="chanChip"></span>
-    <span class="hidden" id="stateChip"><span id="stateText">Casting on</span></span>
-    <span class="hidden" id="epChip">Episode <b id="episode">-</b></span>
-  </p>
-  <nav aria-label="Pages"><a href="setup.html">Setup</a><a href="control.html" aria-current="page">Control room</a></nav>
-</div></header>
+<header class="bar">
+  <div class="bar-in">
+    <a class="brand" href="setup.html">Starring: Chat</a>
+    <p class="facts">
+      <span class="hidden" id="chanFact"></span>
+      <span class="hidden" id="stateFact"></span>
+      <span class="hidden" id="epFact">Episode <b id="episode">-</b></span>
+    </p>
+    <nav aria-label="Pages"><a href="setup.html">Setup</a><a href="control.html" aria-current="page">Control room</a></nav>
+  </div>
+</header>
 
-<main class="wrap">
-  <section class="login" id="login" aria-labelledby="loginTitle">
-    <h1 id="loginTitle">Control room</h1>
-    <p class="intro">Run your show from here. Enter your channel and your control password. The password is the CONTROL_PASSWORD line in the settings file (.env) of the computer running Starring: Chat.</p>
-    <form id="loginForm">
-      <div class="row">
-        <div><label for="chan">Channel</label><input id="chan" type="text" autocomplete="off" autocapitalize="none" spellcheck="false"></div>
-        <div><label for="pw">Control password</label><input id="pw" type="password" autocomplete="current-password" aria-describedby="loginMsg"></div>
+<main class="page">
+  <h1 id="pageTitle">Control room</h1>
+  <section class="login" id="login" aria-labelledby="pageTitle">
+    <p class="intro">Run your show from here. Enter your channel and your control password: the one you chose when you set up Starring: Chat (the CONTROL_PASSWORD line in its .env settings file).</p>
+    <p class="warn-http hidden" id="httpWarn" role="note">This connection is not private. Anyone on your network could see the password. Use the https link instead, or open this page on the computer running Starring: Chat.</p>
+    <form id="loginForm" class="login-form">
+      <div>
+        <label for="chan">Channel</label>
+        <input id="chan" type="text" autocomplete="off" autocapitalize="none" spellcheck="false">
+      </div>
+      <div>
+        <label for="pw">Control password</label>
+        <input id="pw" type="password" autocomplete="current-password" aria-describedby="loginMsg">
       </div>
       <p id="loginMsg" class="field-msg" role="status"></p>
       <button id="connect" type="submit">Connect</button>
@@ -39,53 +46,61 @@
   </section>
 
   <div id="panel" class="hidden">
-    <ul class="actions" aria-label="Show controls">
-      <li>
-        <button type="button" class="action switch" id="casting" role="switch" aria-checked="true" aria-describedby="castingSub">
-          <span id="castingTitle">Casting</span><span class="track" aria-hidden="true"></span>
-        </button>
-        <p class="sub" id="castingSub">On: new chatters get a role.</p>
-      </li>
-      <li>
-        <button type="button" class="action primary" id="credits">
-          <span id="creditsTitle">Roll credits</span>
-          <span class="meter" aria-hidden="true"><i id="creditsProg"></i></span>
-        </button>
-        <p class="sub" id="creditsSub">End the episode with the credits (about 45 seconds).</p>
-      </li>
-      <li>
-        <button type="button" class="action" id="newEpisode"><span id="newTitle">New episode</span></button>
-        <p class="sub" id="newSub">Clear tonight’s cast and start fresh.</p>
-      </li>
-      <li>
-        <button type="button" class="action" id="testCard"><span>Send a test card</span></button>
-        <p class="sub">Check your overlay is showing.</p>
-      </li>
-    </ul>
+    <section aria-labelledby="controls-h">
+      <h2 id="controls-h">Show controls</h2>
+      <p class="status" id="status" role="status" aria-live="polite">Ready.</p>
+      <ul class="controls">
+        <li>
+          <fieldset class="seg">
+            <legend>Casting</legend>
+            <input type="radio" name="casting" id="casting-on" value="on" checked aria-describedby="castingSub">
+            <label for="casting-on">On</label>
+            <input type="radio" name="casting" id="casting-off" value="off" aria-describedby="castingSub">
+            <label for="casting-off">Paused</label>
+          </fieldset>
+          <p class="explain" id="castingSub">On: new chatters get a role.</p>
+        </li>
+        <li>
+          <button type="button" id="credits"><span id="creditsTitle">Roll credits</span><span class="meter" aria-hidden="true"><i id="creditsProg"></i></span></button>
+          <p class="explain" id="creditsSub">End the episode with the credits (about 45 seconds).</p>
+        </li>
+        <li>
+          <button type="button" class="secondary" id="newEpisode"><span id="newTitle">New episode</span></button>
+          <p class="explain" id="newSub">Clear tonight’s cast and start fresh.</p>
+        </li>
+        <li>
+          <button type="button" class="secondary" id="testCard">Send a test card</button>
+          <p class="explain">Check your overlay is showing.</p>
+        </li>
+      </ul>
+    </section>
 
-    <div class="cast-head">
-      <h2 id="castTitle">Tonight’s cast</h2>
-      <label class="sr" for="filter">Filter the cast by name or role</label>
-      <input id="filter" type="text" class="hidden" placeholder="Filter by name or role" autocomplete="off">
-    </div>
-    <table id="castTable" class="hidden" role="table" aria-labelledby="castTitle">
-      <thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader">Name</th><th scope="col" role="columnheader">Role</th><th scope="col" role="columnheader">Type</th><th scope="col" role="columnheader" class="ac"><span class="sr">Actions</span></th></tr></thead>
-      <tbody id="cast" role="rowgroup"></tbody>
-    </table>
-    <div class="state hidden" id="empty">
-      <h3>No one has been cast yet</h3>
-      <p>When a viewer sends their first message, they appear here with their role. To see it work now, send a test card.</p>
-    </div>
-    <div class="state hidden" id="connError" role="alert">
-      <h3>Can’t reach the server</h3>
-      <p>The cast below may be out of date. Check that Starring: Chat is still running; this page keeps trying.</p>
-      <button type="button" id="retry" class="secondary">Try again now</button>
-    </div>
+    <section aria-labelledby="castTitle">
+      <div class="board-bar">
+        <h2 id="castTitle">Tonight’s cast</h2>
+        <label class="sr" for="filter">Filter the cast by name or role</label>
+        <input id="filter" type="text" class="hidden" placeholder="Filter by name or role" autocomplete="off">
+      </div>
+      <table id="castTable" class="board hidden" role="table" aria-labelledby="castTitle">
+        <thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader">Name</th><th scope="col" role="columnheader">Role</th><th scope="col" role="columnheader">Type</th><th scope="col" role="columnheader" class="act"><span class="sr">Actions</span></th></tr></thead>
+        <tbody id="cast" role="rowgroup"></tbody>
+      </table>
+      <div class="notice hidden" id="empty">
+        <h3>No one has been cast yet</h3>
+        <p>When a viewer sends their first message, they appear here with their role. To see it work now, send a test card.</p>
+      </div>
+      <div class="notice hidden" id="connError" role="alert">
+        <h3>Can’t reach the server</h3>
+        <p>The cast above may be out of date. Check that Starring: Chat is still running. This page keeps trying.</p>
+        <button type="button" id="retry" class="secondary">Try again now</button>
+      </div>
+      <p class="hint" id="updated"></p>
+    </section>
 
     <details>
       <summary>Overlay link</summary>
-      <div class="in">
-        <div id="overlayUrl" class="code" tabindex="0" role="textbox" aria-readonly="true" aria-label="Overlay URL"></div>
+      <div class="detail-body">
+        <input id="overlayUrl" class="readout" type="text" readonly aria-label="Overlay link">
         <button id="copyOverlay" type="button" class="secondary">Copy link</button>
         <p class="hint">Paste it into an OBS Browser source: width 1920, height 1080, Control audio via OBS ticked.</p>
       </div>
@@ -93,7 +108,6 @@
   </div>
 </main>
 
-<div class="toast" id="toast" role="status" aria-live="polite"></div>
 <script src="overlay-core.js"></script>
 <script src="control-core.js"></script>
 <script src="setup-core.js"></script>
